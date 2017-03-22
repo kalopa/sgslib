@@ -1,3 +1,4 @@
+#!/usr/bin/env ruby
 #
 # Copyright (c) 2013, Kalopa Research.  All rights reserved.  This is free
 # software; you can redistribute it and/or modify it under the terms of the
@@ -24,23 +25,16 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+$: << '../sgslib'
+
+require 'sgslib'
 
 ##
+# Initialise the REDIS system.
 #
-require "sgs/version"
-require 'sgs/redis_base'
-require 'sgs/location'
-require 'sgs/nmea'
-require 'sgs/gps'
-require 'sgs/waypoint'
-require 'sgs/polar'
-require 'sgs/alarm'
-require 'sgs/timing'
-require 'sgs/command'
-require 'sgs/otto'
-require 'sgs/navigate'
-#require 'mission'
-
-module SGS
-  # Your code goes here...
-end
+SGS::Alarm.setup
+SGS::GPS.setup
+SGS::Otto.setup
+SGS::Timing.setup
+SGS::Waypoint.setup
+#SGS::Mission.setup

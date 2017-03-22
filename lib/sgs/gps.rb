@@ -24,23 +24,33 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-
-##
-#
-require "sgs/version"
-require 'sgs/redis_base'
-require 'sgs/location'
-require 'sgs/nmea'
-require 'sgs/gps'
-require 'sgs/waypoint'
-require 'sgs/polar'
-require 'sgs/alarm'
-require 'sgs/timing'
-require 'sgs/command'
-require 'sgs/otto'
-require 'sgs/navigate'
-#require 'mission'
+require 'redis_base'
+require 'location'
 
 module SGS
-  # Your code goes here...
+  class GPS < RedisBase
+    attr_accessor :time, :location, :sog, :cmg, :magvar
+
+    def initialize(lat = nil, long = nil)
+      @time = Time.new(2000, 1, 1)
+      @location = Location.new(lat, long)
+      @sog = 0.0
+      @cmg = 0.0
+      @magvar = nil
+      @valid = false
+      super()
+    end
+
+    #
+    # Set the validity
+    def is_valid
+      @valid = true
+    end
+
+    #
+    # Is the GPS data valid?
+    def valid?
+      @valid == true
+    end
+  end
 end

@@ -26,21 +26,22 @@
 #
 
 ##
+# Routines for handling sailboat navigation and route planning.
 #
-require "sgs/version"
-require 'sgs/redis_base'
-require 'sgs/location'
-require 'sgs/nmea'
-require 'sgs/gps'
-require 'sgs/waypoint'
-require 'sgs/polar'
-require 'sgs/alarm'
-require 'sgs/timing'
-require 'sgs/command'
-require 'sgs/otto'
-require 'sgs/navigate'
-#require 'mission'
+require 'redis_base'
 
 module SGS
-  # Your code goes here...
+  class Timing < RedisBase
+    attr_accessor :status, :boot, :briefing, :m_start, :m_abort, :m_complete
+
+    def initialize
+      @status = nil
+      @boot = Time.at(0)
+      @briefing = nil
+      @m_start = nil
+      @m_abort = nil
+      @m_complete = nil
+      super
+    end
+  end
 end

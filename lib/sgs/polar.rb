@@ -26,21 +26,61 @@
 #
 
 ##
+# Routines for handling sailboat navigation and route planning.
 #
-require "sgs/version"
-require 'sgs/redis_base'
-require 'sgs/location'
-require 'sgs/nmea'
-require 'sgs/gps'
-require 'sgs/waypoint'
-require 'sgs/polar'
-require 'sgs/alarm'
-require 'sgs/timing'
-require 'sgs/command'
-require 'sgs/otto'
-require 'sgs/navigate'
-#require 'mission'
+# The code on this page was derived from formulae on the Movable Type site:
+# http://www.movable-type.co.uk/scripts/latlong.html
+#
+
+require 'date'
 
 module SGS
-  # Your code goes here...
+  ##
+  #
+  # A class to handle boat polar calculations. It takes a range of polars
+  # as polynomials and then applies them.
+  class Polar
+    # Right now, we have one polar - from a Catalina 22.
+    # Note that the speed is the same, regardless of the tack.
+    STANDARD = [
+       -3.15994,
+       23.8741,
+      -27.4595,
+       16.4868,
+       -5.15663,
+        0.743936,
+       -0.0344716
+    ].freeze
+
+    #
+    # set up the default values
+    def initialize
+      @curve = STANDARD
+    end
+
+    #
+    # Compute the hull speed from the polar
+    # :awa: is the apparent wind angle (in radians)
+    # :wspeed: is the wind speed (in knots)
+    def speed(awa, wspeed = 0.0)
+      awa = awa.to_f.abs
+      ap = 1.0
+      @speed = 0.0
+      @curve.each do |poly_val|
+        @speed += poly_val * ap
+        ap *= awa
+      end
+      @speed /= 1.529955
+      if @speed < 0.0
+        @speed = 0.0
+      end
+      @speed
+    end
+
+    #
+    # Calculate the VMG from the angle to the mark.
+    def vmg(alpha)
+      Math::cos(alpha) * @speed
+    end
+  end
 end

@@ -27,20 +27,15 @@
 
 ##
 #
-require "sgs/version"
-require 'sgs/redis_base'
-require 'sgs/location'
-require 'sgs/nmea'
-require 'sgs/gps'
-require 'sgs/waypoint'
-require 'sgs/polar'
-require 'sgs/alarm'
-require 'sgs/timing'
-require 'sgs/command'
-require 'sgs/otto'
-require 'sgs/navigate'
+require 'redis_base'
+require 'location'
+require 'nmea'
+require 'gps'
+require 'waypoint'
+require 'polar'
+require 'alarm'
+require 'timing'
+require 'command'
+require 'otto'
+require 'navigate'
 #require 'mission'
-
-module SGS
-  # Your code goes here...
-end
