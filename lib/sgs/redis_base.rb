@@ -139,6 +139,7 @@ module SGS
         end
         $redis.incr count_name
       end
+      true
     end
 
     #
