@@ -1,8 +1,8 @@
 # Sailboat Guidance System
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/sgs`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
+The Sailboat Guidance System is a Ruby gem for managing an autonomous, robotic sailboat.
+As it stands, it is quite specific to the [Beoga Beag](http://beogabeag.com) boat, but
+this will change, over time.
 
 ## Installation
 
@@ -38,4 +38,3 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/[USERN
 ## License
 
 The gem is available as open source under the terms of the [MIT License](http://opensource.org/licenses/MIT).
-
