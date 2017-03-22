@@ -4,14 +4,14 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'sgs/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = "sgs"
+  spec.name          = "sgslib"
   spec.version       = SGS::VERSION
   spec.authors       = ["Dermot Tynan"]
   spec.email         = ["dtynan@kalopa.com"]
 
   spec.summary       = %q{Sailboat Guidance System}
   spec.description   = %q{Sailboat Guidance System - an autonomous navigation and control system for robotic sailboats.}
-  spec.homepage      = "http://github.com/kalopa/sgs."
+  spec.homepage      = "http://github.com/kalopa/sgslib"
   spec.license       = "MIT"
 
   # Prevent pushing this gem to RubyGems.org by setting 'allowed_push_host', or

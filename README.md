@@ -9,7 +9,7 @@ this will change, over time.
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'sgs'
+gem 'sgslib'
 ```
 
 And then execute:
@@ -18,7 +18,7 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install sgs
+    $ gem install sgslib
 
 ## Usage
 
