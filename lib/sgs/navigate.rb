@@ -27,8 +27,6 @@
 
 ##
 #
-require 'redis_base'
-
 module SGS
   class Navigate
     attr_reader :mode

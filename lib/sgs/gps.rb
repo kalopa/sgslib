@@ -24,9 +24,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-require 'redis_base'
-require 'location'
-
 module SGS
   class GPS < RedisBase
     attr_accessor :time, :location, :sog, :cmg, :magvar

@@ -29,8 +29,6 @@
 # Routines for handling sailboat alarms. Note that this is the definitive
 # list of alarms on the system. To add or modify an alarm, do so here.
 #
-require 'redis_base'
-
 module SGS
   ##
   # Deal with command subsystem.

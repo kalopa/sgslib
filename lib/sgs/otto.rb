@@ -28,8 +28,6 @@
 ##
 # Routines for interfacing with the low-level microcontroller.
 #
-require 'redis_base'
-
 module SGS
   class Otto < RedisBase
     attr_reader :rudder, :sail, :compass, :twa
