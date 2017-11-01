@@ -34,82 +34,113 @@ module SGS
   #
   # Waypoint, Attractor, and Repellor definitions
   class Waypoint < RedisBase
-    attr_accessor :location, :chord, :type, :name, :bearing, :distance
+    attr_accessor :location, :normal, :radius, :name, :repellor, :bearing
+    attr_reader :bearing, :distance
 
     #
-    # Types of waypoints
-    START_LINE = 0
-    FINISH_LINE = 1
-    WAYPOINT = 2
-    REPELLOR = 3
-
-    def initialize(location = nil, chord = nil, name = "", type = WAYPOINT)
+    # Define a new Attractor or Repellor, based on certain parameters.
+    # The location is the centre of the waypoint. The normal is the compass
+    # angle of the start of the semicircle, and the radius is the size of
+    # the arc. You can specify an optional name for the waypoint and also
+    # indicate if we should be attracted or repelled by it.
+    def initialize(location = nil, normal = 0.0, radius = 0.1, name = "", repellor = false)
       @location = location || Location.new
-      @chord = chord
-      @type = type
+      @normal = normal
+      @radius = radius
       @name = name
+      @repellor = repellor
+      @bearing = nil
+      @distance = 0
     end
 
     #
-    # Calculate the back-vector from the waypoint to the specified position
-    # Calculate the adjusted distance between the mark and the set location.
+    # Calculate the back-vector from the waypoint to the specified position.
+    # Calculate the adjusted distance between the position and the mark.
     # Check to see if our back-bearing from the waypoint to our location is
-    # inside the chord of the waypoint. If so, reduce the distance to the
-    # waypoint by the length of the chord.
+    # inside the chord of the waypoint, which is a semicircle commencing at
+    # the normal. If so, reduce the distance to the waypoint by the length
+    # of the chord. @distance is the adjusted distance to the location
     def compute_bearing(loc)
-      @bearing = Bearing.calculate(loc, @location)
+      @bearing = loc - @location
       @distance = @bearing.distance
-      d = Bearing.new(@bearing.back_angle - @chord.angle, @distance)
-      # A chord angle of 0 gives a semicircle from 180 to 360 degrees
-      # (inclusive). If our approach angle is within range, then reduce our
-      # distance to the mark by the chord distance (radius).
-      unless d.angle > 0.0 and d.angle < Math::PI
-        @distance -= @chord.distance
-      end
+      d = Bearing.new(@bearing.back_angle - @normal, @bearing.distance)
+      # A chord angle of 0 gives a semicircle from 0 to 180 degrees. If our
+      # approach angle is within range, then reduce our distance to the mark
+      # by the chord distance (radius).
+      @distance -= @radius if d.angle >= 0.0 and d.angle < Math::PI
+      @distance = 0.0 if @distance < 0.0
       @distance
+    end
+
+    #
+    # Is this an attractor?
+    def attractor?
+      @repellor == false
+    end
+
+    #
+    # Is this a repellor?
+    def repellor?
+      @repellor == true
     end
 
     #
     # Is the waypoint in scope? In other words, is our angle inside the chord.
     def in_scope?
       puts "In-scope distance is %f..." % @distance
-      @distance <= 0.0
+      @distance == 0.0
+    end
+
+    #
+    # Convert the waypoint normal to/from degrees
+    def normal_d
+      Bearing.rtod @normal
+    end
+
+    #
+    # Convert the waypoint normal to/from degrees
+    def normal_d=(val)
+      @normal = Bearing.dtor val
     end
 
     #
     # Pretty version of the waypoint.
     def to_s
-      "'#{@name}' at #{@location} => #{chord}"
+      "'#{@name}' at #{@location} => #{normal_d}%#{@radius}"
     end
 
     #
     # Display a string for a KML file
     def to_kml
-      c2 = @chord.clone
-      c2.angle += Math::PI
-      pos1 = @location.calculate(@chord)
-      pos2 = @location.calculate(c2)
-      "#{pos1.to_kml(',')} #{pos2.to_kml(',')}"
+      puts "TO KML!"
+      #p self
+      #c2 = @chord.clone
+      #c2.angle += Math::PI
+      #pos1 = @location.calculate(@chord)
+      #pos2 = @location.calculate(c2)
+      #"#{pos1.to_kml(',')} #{pos2.to_kml(',')}"
     end
 
     #
     # Show the axis line for the waypoint (as a KML)
     def to_axis_kml
-      c2 = @chord.clone
-      c2.angle += 1.5 * Math::PI
-      pos1 = @location.calculate(c2)
-      "#{@location.to_kml(',')} #{pos1.to_kml(',')}"
+      puts "TO_AXIS_KML!"
+      #::FIXME::
+      #c2 = @chord.clone
+      #c2.angle += 1.5 * Math::PI
+      #pos1 = @location.calculate(c2)
+      #"#{@location.to_kml(',')} #{pos1.to_kml(',')}"
     end
   end
 
   #
-  # Store the track over the ground.
-  class Track
+  # Store an individual track point.
+  class TrackPoint
     attr_accessor :time, :location
 
-    def initialize(time, location)
-      @time = time
-      @location = location
+    def initialize(time = nil, location = nil)
+      @time = time ? time.clone : nil
+      @location = location ? location.clone : nil
     end
   end
 end

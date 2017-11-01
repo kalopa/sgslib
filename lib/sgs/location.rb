@@ -32,6 +32,11 @@ require 'date'
 require 'json'
 
 module SGS
+  #
+  # Nominal radius of the planet, in nautical miles.
+  # http://en.wikipedia.org/wiki/Earth_radius#Mean_radii
+  EARTH_RADIUS = 3440.069528437724
+
   ##
   #
   # Class for dealing with latitude/longitude. Includes methods for parsing,
@@ -44,15 +49,17 @@ module SGS
     attr_accessor :latitude, :longitude
 
     #
-    # Nominal radius of the planet, in nautical miles.
-    # http://en.wikipedia.org/wiki/Earth_radius#Mean_radii
-    EARTH_RADIUS = 3440.069528437724
-
-    #
     # Create the Location instance.
     def initialize(lat = nil, long = nil)
       @latitude = lat.to_f if lat
       @longitude = long.to_f if long
+    end
+
+    #
+    # The difference between two locations is a Bearing
+    def -(loc)
+      puts "Distance from #{self} to #{loc}"
+      Bearing.compute(self, loc)
     end
 
     #
@@ -66,18 +73,18 @@ module SGS
     #              Math.cos(lat1)*Math.sin(d/R)*Math.cos(angle) );
     # var lon2 = lon1 + Math.atan2(Math.sin(angle)*Math.sin(d/R)*Math.cos(lat1), 
     #                     Math.cos(d/R)-Math.sin(lat1)*Math.sin(lat2));
-    def calculate(bearing)
+    def +(bearing)
       loc = Location.new
       sin_angle = Math.sin(bearing.angle)
       cos_angle = Math.cos(bearing.angle)
-      sin_dstr = Math.sin(bearing.distance / EARTH_RADIUS)
-      cos_dstr = Math.cos(bearing.distance / EARTH_RADIUS)
+      sin_dstr = Math.sin(bearing.distance / SGS::EARTH_RADIUS)
+      cos_dstr = Math.cos(bearing.distance / SGS::EARTH_RADIUS)
       sin_lat1 = Math.sin(@latitude)
       cos_lat1 = Math.cos(@latitude)
       loc.latitude = Math.asin(sin_lat1*cos_dstr + cos_lat1*sin_dstr*cos_angle)
-      sin_lat2 = Math.sin(loc.latitude)
+      sin_lat2 = Math.sin(@latitude)
       loc.longitude = @longitude + Math.atan2(sin_angle*sin_dstr*cos_lat1,
-                              cos_dstr - sin_lat1*sin_lat2)
+                                              cos_dstr - sin_lat1*sin_lat2)
       loc
     end
 
@@ -139,42 +146,42 @@ module SGS
 
     #
     # Display the lat/long as it would appear in a KML file.
-    def to_kml(sep = ' ')
+    def to_kml(sep = ',')
       vals = [@longitude, @latitude, 0.0]
-      str_vals = vals.map {|val| "%.6f" % Bearing.radians_to_degrees(val)}
+      str_vals = vals.map {|val| "%.8f" % Bearing.rtod(val)}
       str_vals.join(sep)
     end
 
     #
     # Helper functions for working in degrees.
-    def latitude_degrees
-      Bearing.radians_to_degrees @latitude
+    def latitude_d
+      Bearing.rtod @latitude
     end
 
-    def latitude_degrees=(val)
-      @latitude = Bearing.degrees_to_radians val
+    def latitude_d=(val)
+      @latitude = Bearing.dtor val
     end
 
     def latitude_array(fmt = nil)
-      make_ll_array latitude_degrees, "NS", fmt
+      make_ll_array latitude_d, "NS", fmt
     end
 
-    def longitude_degrees
-      Bearing.radians_to_degrees @longitude
+    def longitude_d
+      Bearing.rtod @longitude
     end
 
-    def longitude_degrees=(val)
-      @longitude = Bearing.degrees_to_radians val
+    def longitude_d=(val)
+      @longitude = Bearing.dtor val
     end
 
     def longitude_array(fmt = nil)
-      make_ll_array longitude_degrees, "EW", fmt
+      make_ll_array longitude_d, "EW", fmt
     end
 
     #
     # Subtract one location from another, returning a bearing
     def -(loc)
-      Bearing.calculate(self, loc)
+      Bearing.compute(self, loc)
     end
 
   private
@@ -186,7 +193,7 @@ module SGS
       val = args.shift
       val = val + args.shift / 60.0 if args.length > 0
       val = val + args.shift / 3600.0 if args.length > 0
-      Bearing.degrees_to_radians val * ((nsew.index(dir) == 1) ? -1 : 1)
+      Bearing.dtor val * ((nsew.index(dir) == 1) ? -1 : 1)
     end
 
     #
@@ -198,7 +205,7 @@ module SGS
       else
         chr = str[0]
       end
-      "%8.6f%c" % [Bearing.radians_to_degrees(val), chr]
+      "%8.6f%c" % [Bearing.rtod(val), chr]
     end
 
     #
@@ -235,18 +242,18 @@ module SGS
     #
     # Create a bearing from an angle in degrees.
     def self.degrees(angle, distance)
-      new(Bearing.degrees_to_radians(angle), distance)
+      new(Bearing.dtor(angle), distance)
     end
 
     #
     # Handy function to translate degrees to radians
-    def self.degrees_to_radians(deg)
+    def self.dtor(deg)
       deg.to_f * Math::PI / 180.0
     end
 
     #
     # Handy function to translate radians to degrees
-    def self.radians_to_degrees(rad)
+    def self.rtod(rad)
       rad.to_f * 180.0 / Math::PI
     end
 
@@ -259,7 +266,7 @@ module SGS
     #
     # Another handy function to re-adjust an angle (in degrees) away from
     # negative.
-    def self.absolute_degrees(angle)
+    def self.absolute_d(angle)
       (angle + 360) % 360
     end
 
@@ -279,7 +286,7 @@ module SGS
     # var x = Math.cos(lat1)*Math.sin(lat2) -
     #         Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);
     # var angle = Math.atan2(y, x).toDeg();
-    def self.calculate(loc1, loc2)
+    def self.compute(loc1, loc2)
       bearing = new
       sin_lat1 = Math.sin(loc1.latitude)
       sin_lat2 = Math.sin(loc2.latitude)
@@ -288,7 +295,7 @@ module SGS
       sin_dlon = Math.sin(loc2.longitude - loc1.longitude)
       cos_dlon = Math.cos(loc2.longitude - loc1.longitude)
       bearing.distance = Math.acos(sin_lat1*sin_lat2 + cos_lat1*cos_lat2*cos_dlon) *
-                                Location::EARTH_RADIUS
+                                SGS::EARTH_RADIUS
       y = sin_dlon * cos_lat2
       x = cos_lat1 * sin_lat2 - sin_lat1 * cos_lat2 * cos_dlon
       bearing.angle = Math.atan2(y, x)
@@ -309,8 +316,8 @@ module SGS
 
     #
     # Return the angle (in degrees)
-    def angle_degrees
-      Bearing.radians_to_degrees(@angle).to_i
+    def angle_d
+      Bearing.rtod(@angle).to_i
     end
 
     #
@@ -322,7 +329,7 @@ module SGS
     #
     # Convert to a string
     def to_s
-      "BRNG %03dd,%.3fnm" % [angle_degrees, @distance]
+      "BRNG %03dd,%.3fnm" % [angle_d, @distance]
     end
   end
 end

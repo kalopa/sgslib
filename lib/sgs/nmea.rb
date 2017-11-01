@@ -92,7 +92,7 @@ module SGS
       gps.time = Time.gm(yy, mn, dd, hh, mm, ss, us)
       gps.location = Location.parse ll_nmea(@args[3,4]), ll_nmea(@args[5,6])
       gps.sog = @args[7].to_f
-      gps.cmg = Bearing.degrees_to_radians @args[8].to_f
+      gps.cmg = Bearing.dtor @args[8].to_f
       gps
     end
 
@@ -107,7 +107,7 @@ module SGS
       @args.concat gps.location.latitude_array
       @args.concat gps.location.longitude_array("%03d%07.4f")
       @args[7] = "%.2f" % gps.sog
-      @args[8] = "%.2f" % Bearing.radians_to_degrees(gps.cmg)
+      @args[8] = "%.2f" % Bearing.radians_to_d(gps.cmg)
       @args[9] = gps.time.strftime("%d%m%y")
       @args.concat ['', '']
       @args << 'A'

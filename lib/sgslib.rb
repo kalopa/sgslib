@@ -33,13 +33,13 @@ require 'sgs/location'
 require 'sgs/nmea'
 require 'sgs/gps'
 require 'sgs/waypoint'
-require 'sgs/polar'
 require 'sgs/alarm'
 require 'sgs/timing'
 require 'sgs/command'
 require 'sgs/otto'
+require 'sgs/course'
 require 'sgs/navigate'
-#require 'mission'
+require 'sgs/mission'
 
 module SGS
   # Your code goes here...
