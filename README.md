@@ -1,3 +1,5 @@
+[![Gem Version](https://badge.fury.io/rb/sgslib.svg)](https://badge.fury.io/rb/sgslib)
+
 # Sailboat Guidance System
 
 The Sailboat Guidance System is a Ruby gem for managing an autonomous, robotic sailboat.
