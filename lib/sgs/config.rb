@@ -1,6 +1,5 @@
-#!/usr/bin/env ruby
 #
-# Copyright (c) 2013, Kalopa Research.  All rights reserved.  This is free
+# Copyright (c) 2018, Kalopa Research.  All rights reserved.  This is free
 # software; you can redistribute it and/or modify it under the terms of the
 # GNU General Public License as published by the Free Software Foundation;
 # either version 2, or (at your option) any later version.
@@ -25,16 +24,29 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-$: << '../sgslib'
+module SGS
+  class Config < RedisBase
+    attr_accessor :otto_device, :gps_device, :comm_device
+    attr_accessor :otto_speed, :gps_speed, :comm_speed
 
-require 'sgslib'
+    def initialize
+      @otto_dev = "/dev/ttyU0"
+      @gps_dev = "/dev/ttyU1"
+      @comm_dev = "/dev/ttyU2"
+      @otto_speed = @gps_speed = @comm_speed = 9600
+      super()
+    end
 
-##
-# Initialise the REDIS system.
-#
-SGS::Alarm.setup
-SGS::GPS.setup
-SGS::Otto.setup
-SGS::Timing.setup
-SGS::Waypoint.setup
-#SGS::Mission.setup
+    #
+    # Set up the Redis configuration with some basic data
+    def self.configure_all
+      Config.setup
+      Alarm.setup
+      GPS.setup
+      Otto.setup
+      Timing.setup
+      Waypoint.setup
+      Mission.setup
+    end
+  end
+end

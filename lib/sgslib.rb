@@ -29,6 +29,7 @@
 #
 require "sgs/version"
 require 'sgs/redis_base'
+require 'sgs/config'
 require 'sgs/location'
 require 'sgs/nmea'
 require 'sgs/gps'
@@ -40,7 +41,3 @@ require 'sgs/otto'
 require 'sgs/course'
 require 'sgs/navigate'
 require 'sgs/mission'
-
-module SGS
-  # Your code goes here...
-end
