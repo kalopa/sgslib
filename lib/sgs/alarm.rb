@@ -62,7 +62,7 @@ module SGS
     CROSS_TRACK_ERROR = 20
     INSIDE_FENCE = 21
 
-    MESSAGES = [
+    ALARM_NAMES = [
       "OTTO Restarted",
       "Rudder Servo Fault",
       "Sail Servo Fault",

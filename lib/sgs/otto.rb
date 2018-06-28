@@ -30,134 +30,110 @@
 #
 module SGS
   class Otto < RedisBase
-    attr_reader :rudder, :sail, :compass, :twa
-    attr_accessor :bvcal, :bical, :btcal, :svcal
+    attr_accessor :raw_rudder, :raw_sail, :raw_compass, :raw_awa, :raw_tc, :raw_ta
+    attr_accessor :mode, :rudder_m, :rudder_c, :sail_m, :sail_c
+    attr_accessor :bv_m, :bv_c, :bi_m, :bi_c, :bt_m, :bt_c, :sv_m, :sv_c
 
+    MODE_INERT = 0
+    MODE_DIAGNOSTICS = 1
+    MODE_MANUAL = 2
+    MODE_TRACK_COMPASS = 3
+    MODE_TRACK_AWA = 4
+
+    MODE_NAMES = [
+      "Inert Mode", "Diagnostics Mode", "Manual Control Mode",
+      "Compass-Tracking Mode", "AWA-Tracking Mode"
+    ].freeze
+
+    #
+    # Set up some useful defaults. We assume rudder goes from 0 to 200 as does
+    # the sail angle.
     def initialize
-      @bvcal = 0.0
-      @bical = 0.0
-      @btcal = 0.0
-      @svcal = 0.0
-      @rudder = read_rudder
-      @sail = read_sail
-      @compass = read_compass
-      @twa = read_twa
+      #
+	    # Configure the Mx + C values for sail and rudder
+      @rudder_m = 2.5
+      @rudder_c = 100.0
+      @sail_m = 2.0
+      @sail_c = 0.0
+      #
+      # Now set the rudder and sail to default positions (rudder is centered)
+      rudder = 0.0
+      sail = 0.0
+      #
+      # Set up some basic parameters for battery/solar readings
+      @bv_m = @bi_m = @bt_m = @sv_m = 1.0
+      @bv_c = @bi_c = @bt_c = @sv_c = 0.0
       super
     end
 
     #
-    # Set the required rudder angle. Input values range from +/- 40 degrees
+    # Set the required rudder angle. Input values range from +/- 40.0 degrees
     def rudder=(val)
-      val = -39.9 if val < -39.9
-      val = 39.9 if val > 39.9
-      return if @rudder == val
-      @rudder = val
-      intval = (@rudder * 120.0 / 40.0).to_int + 128
-      puts "New rudder value: #{intval} (#{@rudder} degrees)"
-      send_command(SET_RUDDER, intval)
+      val = -40.0 if val < -40.0
+      val = 40.0 if val > 40.0
+      @raw_rudder = (@rudder_m * val.to_f + @rudder_c).to_i
+    end
+
+    #
+    # Return the rudder angle in degrees
+    def rudder
+      (@raw_rudder.to_f - @rudder_c) / @rudder_m
     end
 
     #
     # Set the required sail angle. Input values range from 0 -> 90 degrees.
     def sail=(val)
       val = 0.0 if val < 0.0
-      val = 90.0 if val > 90.0
-      return if @sail == val
-      @sail = val
-      intval = (@sail * 256.0 / 90.0).to_int
-      puts "New sail angle: #{intval} (#{@sail} degrees)"
-      send_command(SET_SAIL, intval)
+      val = 100.0 if val > 100.0
+      @raw_sail = (@sail_m * val.to_f + @sail_c).to_i
+    end
+
+    #
+    # Return the sail setting (0.0 -> 100.0)
+    def sail
+      (@raw_sail.to_f - @sail_c) / @sail_m
+    end
+
+    #
+    # Return the compass angle (in radians)
+    def compass
+      @raw_compass.to_f * Math::PI / 128.0
+    end
+
+    #
+    # Return the apparent wind angle (in radians)
+    def awa
+      @raw_awa.to_f * Math::PI / 128.0
     end
 
     #
     # Set the required compass reading. Input values range from 0 -> 359 degrees
-    def compass=(val)
+    def track_compass=(val)
       while val < 0.0
         val += 360.0
       end
       val %= 360.0
-      return if @compass == val
-      @compass = val
-      intval = (@compass * 256.0 / 360.0).to_int
-      puts "New compass heading: #{intval} (#{@compass} degrees)"
-      send_command(SET_COMPASS, intval)
+      @raw_tc = (val.to_f * 128.0 / Math::PI).to_i
     end
 
     #
-    # Set the required true wind angle. Input values range from +/- 180 degrees
-    def twa=(val)
-      val = -179.9 if val < -179.9
-      val = 179.9 if val > 179.9
-      return if @twa == val
-      @twa = val
-      val = 360.0 + val if val < 0.0
-      intval = (val * 256.0 / 360.0).to_int
-      puts "New TWA: #{intval} (#{@twa} degrees)"
-      send_command(SET_TWA, intval)
+    # Return the compass value for tracking.
+    def track_compass
+      @raw_tc.to_f * Math::PI / 128.0
     end
 
     #
-    # Read the uptime clock
-    def read_uptime
-      intval = send_command(READ_UPTIME)
+    # Set the required AWA for tracking.
+    def track_awa=(val)
+      val = -180.0 if val < -180.0
+      val = 180.0 if val > 180.0
+      @raw_ta = (val.to_f * 128.0 / Math::PI).to_i
     end
 
     #
-    # Read the battery voltage
-    def read_battery_volts
-      intval = send_command(READ_BATTERY_VOLTAGE)
-      intval.to_f * @bvcal / 1024.0
-    end
-
-    #
-    # Read the battery current
-    def read_battery_current
-      intval = send_command(READ_BATTERY_CURRENT)
-      intval.to_f * @bical / 1024.0
-    end
-
-    #
-    # Read the boat temperature
-    def read_boat_temperature
-      intval = send_command(READ_BOAT_TEMPERATURE)
-      intval.to_f * @btcal / 1024.0
-    end
-
-    #
-    # Read the solar voltage
-    def read_solar_volts
-      intval = send_command(READ_SOLAR_VOLTAGE)
-      intval.to_f * @svcal / 1024.0
-    end
-
-    #
-    # Read the actual compass value
-    def read_compass
-      intval = send_command(GET_COMPASS)
-      intval.to_f * 360.0 / 256.0
-    end
-
-    #
-    # Read the actual TWA value
-    def read_twa
-      intval = send_command(GET_TWA)
-      val = intval.to_f * 180.0 / 128.0
-      val = val - 360.0 if val > 180.0
-      val
-    end
-
-    #
-    # Read the actual boat pitch
-    def read_pitch
-      intval = send_command(GET_PITCH)
-      intval.to_f
-    end
-
-    #
-    # Read the actual boat heel
-    def read_heel
-      intval = send_command(GET_HEEL)
-      intval.to_f
+    # Return the current tracking AWA.
+    def track_awa
+      @raw_ta.to_f * Math::PI / 128.0
     end
   end
 end
