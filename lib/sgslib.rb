@@ -30,6 +30,7 @@
 require "sgs/version"
 require 'sgs/redis_base'
 require 'sgs/config'
+require 'sgs/rpc'
 require 'sgs/location'
 require 'sgs/nmea'
 require 'sgs/gps'
