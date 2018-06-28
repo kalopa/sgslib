@@ -34,7 +34,6 @@ module SGS
   class RedisBase
     class << self
       def redis
-        puts "Class init"
         @@redis ||= Redis.new
       end
     end
