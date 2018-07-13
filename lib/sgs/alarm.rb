@@ -97,7 +97,7 @@ module SGS
     #
     # Convert an alarm number into a string.
     def name(alarmno)
-      MESSAGES[alarmno]
+      ALARM_NAMES[alarmno]
     end
   end
 end
