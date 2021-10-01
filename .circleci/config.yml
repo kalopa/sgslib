@@ -1,17 +1,20 @@
-deploy:
-  docker:
-    - image: circleci/ruby:2.4.1-node-browsers
-    
-  working_directory: ~/repo
-  
-  steps:
-    - checkout
-    - run:
-      name: Setup Rubygems
-      command: bash .circleci/setup-rubygems.sh
-    
-    - run:
-      name: Publish to Rubygems
-      command: |
-        gem build sgslib.gemspec
-        gem push "sgslib-$(git describe --tags).gem"
+version: 2.1
+orbs:
+  ruby: circleci/ruby@2.5
+jobs:
+  build:
+    docker:
+      - image: 'cimg/base:stable'
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - ruby/install:
+          version: '2.5'
+      - run:
+        name: Setup Rubygems
+        command: bash .circleci/setup-rubygems.sh
+      - run:
+        name: Publish to Rubygems
+        command: |
+          gem build sgslib.gemspec
+          gem push "sgslib-$(git describe --tags).gem"
