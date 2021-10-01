@@ -30,9 +30,9 @@ module SGS
     attr_accessor :otto_speed, :gps_speed, :comm_speed
 
     def initialize
-      @otto_device = "/dev/ttyU0"
-      @gps_device = "/dev/ttyU1"
-      @comm_device = "/dev/ttyU2"
+      @otto_device = "/dev/ttyu0"
+      @gps_device = "/dev/ttyu1"
+      @comm_device = "/dev/ttyu2"
       @otto_speed = @gps_speed = @comm_speed = 9600
       super()
     end
