@@ -13,6 +13,5 @@ deploy:
     - run:
       name: Publish to Rubygems
       command: |
-      gem build sgslib.gemspec
-      gem push "sgslib-$(git describe --tags).gem"
-
+        gem build sgslib.gemspec
+        gem push "sgslib-$(git describe --tags).gem"
