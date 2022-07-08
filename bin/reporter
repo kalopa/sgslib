@@ -32,16 +32,20 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # ABSTRACT
+# This daemon runs periodically to send status reports and alerts back to
+# mission control. Status reports are sent every six hours, and alerts
+# are sent as they happen. It understands the weird interface of the
+# RockBlock and sends compressed log data back to mission control.
 #
-require "bundler/setup"
-require "sgslib"
+require 'serialport'
+require 'sgslib'
 
-# You can add fixtures and/or initialization code here to make experimenting
-# with your gem easier. You can also use a different console, if you like.
+config = SGS::Config.load
 
-# (If you use this, don't forget to add pry to your Gemfile!)
-# require "pry"
-# Pry.start
+sp = SerialPort.new config.comm_device, config.comm_speed
+sp.read_timeout = 10000
 
-require "irb"
-IRB.start
+loop do
+  sleep 300
+end
+exit 0

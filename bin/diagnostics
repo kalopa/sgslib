@@ -32,16 +32,12 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # ABSTRACT
+# If needed, run a set of diagnostics on the sailboat, to determine if there
+# are issues. Also includes calibrating the compass, etc.
 #
-require "bundler/setup"
-require "sgslib"
+require 'sgslib'
 
-# You can add fixtures and/or initialization code here to make experimenting
-# with your gem easier. You can also use a different console, if you like.
-
-# (If you use this, don't forget to add pry to your Gemfile!)
-# require "pry"
-# Pry.start
-
-require "irb"
-IRB.start
+loop do
+  sleep 300
+end
+exit 0

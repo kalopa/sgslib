@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby
+#!/bin/sh
 #
 # Copyright (c) 2014-2022, Kalopa Robotics Limited.  All rights
 # reserved.
@@ -32,16 +32,37 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # ABSTRACT
+# Run this script when you first install the SGS software to make sure all
+# of the various bits and pieces are properly installed and configured.
 #
-require "bundler/setup"
-require "sgslib"
 
-# You can add fixtures and/or initialization code here to make experimenting
-# with your gem easier. You can also use a different console, if you like.
+# Mount the root and config partitions in case we need them.
+mount -w /
+mount -w /cfg
 
-# (If you use this, don't forget to add pry to your Gemfile!)
-# require "pry"
-# Pry.start
+# Install whatever Ruby gems we need.
+gem install daemons -v 1.2.6
+gem install god -v 0.13.7
+gem install serialport -v 1.3.1
+gem install redis -v 3.3.5
+gem install mini_portile2 -v 2.3.0
+gem install nokogiri -v 1.8.3
+gem install msgpack -v 1.2.4
+gem install sgslib
 
-require "irb"
-IRB.start
+# Make sure Redis is running properly.
+mkdir -p /app/redis
+chown redis:redis /app/redis
+/etc/local/rc.d/redis restart
+redis-cli -i 1 info | grep -e ^redis -e uptime
+
+# Do the initial configuration of the Redis data
+ruby -r sgslib -e SGS::Config.configure_all
+
+# Install the god-particles.
+cp /app/mother/god.conf /etc
+cp /app/mother/god.conf /cfg
+/app/rc.d/god restart
+god status
+
+exit 0

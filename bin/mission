@@ -32,16 +32,16 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # ABSTRACT
+# This utility daemon is responsible for reporting various system-level
+# activities to the appropriate log files. It attempts to catch all
+# messages thrown by the various daemons, and then writes the message
+# to the log file for possible transmission back to mission control. It
+# is responsible for rolling the log files, and recycling logging space
+# if the log directory starts to fill up - hopefully that won't happen.
 #
-require "bundler/setup"
-require "sgslib"
+require 'sgslib'
 
-# You can add fixtures and/or initialization code here to make experimenting
-# with your gem easier. You can also use a different console, if you like.
-
-# (If you use this, don't forget to add pry to your Gemfile!)
-# require "pry"
-# Pry.start
-
-require "irb"
-IRB.start
+loop do
+  sleep 300
+end
+exit 0

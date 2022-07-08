@@ -32,16 +32,16 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # ABSTRACT
+# This is the main navigator function. It listens for GPS messages
+# and computes the mission details from the current boat position. It
+# understands the various boat-state functions so that it won't try to
+# steer the boat if it is in a passive state.
 #
-require "bundler/setup"
-require "sgslib"
+require 'sgslib'
 
-# You can add fixtures and/or initialization code here to make experimenting
-# with your gem easier. You can also use a different console, if you like.
-
-# (If you use this, don't forget to add pry to your Gemfile!)
-# require "pry"
-# Pry.start
-
-require "irb"
-IRB.start
+SGS::GPS.subscribe do |count|
+  logger.info "Received new count: #{count}"
+  gps = SGS::GPS.load
+  p gps
+end
+exit 0

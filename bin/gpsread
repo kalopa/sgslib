@@ -32,16 +32,23 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # ABSTRACT
+# This daemon is responsible for reading from the GPS unit and posting
+# the data to the Redis database, and also sending a GPS message to any
+# and all interested parties.
 #
-require "bundler/setup"
-require "sgslib"
+require 'serialport'
+require 'sgslib'
 
-# You can add fixtures and/or initialization code here to make experimenting
-# with your gem easier. You can also use a different console, if you like.
+config = SGS::Config.load
 
-# (If you use this, don't forget to add pry to your Gemfile!)
-# require "pry"
-# Pry.start
+sp = SerialPort.new config.gps_device, config.gps_speed
+sp.read_timeout = 10000
 
-require "irb"
-IRB.start
+loop do
+  nmea = SGS::NMEA.parse sp.readline
+  if nmea.is_gprmc?
+    gps = nmea.parse_gprmc
+    gps.save_and_publish if gps and gps.valid?
+  end
+end
+exit 0

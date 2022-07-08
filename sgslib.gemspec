@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.summary       = %q{Sailboat Guidance System}
   spec.description   = %q{Sailboat Guidance System - an autonomous navigation and control system for robotic sailboats.}
   spec.homepage      = "http://github.com/kalopa/sgslib"
-  spec.license       = "MIT"
+  spec.license       = "GPL-2.0"
 
   # Prevent pushing this gem to RubyGems.org by setting 'allowed_push_host', or
   # delete this section to allow pushing this gem to any host.
