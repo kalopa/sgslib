@@ -52,15 +52,21 @@ module SGS
     STATE_AWAITING = 0
     STATE_READY_TO_START = 1
     STATE_START_TEST = 2
-    STATE_ON_MISSION = 3
-    STATE_COMPLETE = 4
+    STATE_RADIO_CONTROL = 3
+    STATE_COMPASS_FOLLOW = 4
+    STATE_WIND_FOLLOW = 5
+    STATE_COMPLETE = 6
+    STATE_FAILURE = 7
 
     STATE_NAMES = [
       ["Awaiting Instructions", STATE_AWAITING],
       ["Ready to Start", STATE_READY_TO_START],
       ["Initial Testing", STATE_START_TEST],
-      ["On-Mission", STATE_ON_MISSION],
-      ["Mission Completed!", STATE_COMPLETE]
+      ["On-Mission - Radio Control", STATE_RADIO_CONTROL],
+      ["On-Mission - Track Compass Heading", STATE_COMPASS_FOLLOW],
+      ["On-Mission - Track Wind Direction", STATE_WIND_FOLLOW],
+      ["Mission Completed!", STATE_COMPLETE],
+      ["Mission Failure", STATE_FAILURE]
     ].freeze
 
     #
