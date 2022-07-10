@@ -38,14 +38,44 @@
 # Routines for handling sailboat navigation and route planning.
 #
 require 'date'
-require 'nokogiri'
+require 'yaml'
 
 module SGS
   #
   # Handle a specific mission.
   class Mission
+    attr_accessor :title, :url, :description, :state
+    attr_accessor :launch_site, :launch_location
     attr_accessor :attractors, :repellors, :track
     attr_accessor :where, :time, :course, :distance
+
+    STATE_AWAITING = 0
+    STATE_READY_TO_START = 1
+    STATE_START_TEST = 2
+    STATE_ON_MISSION = 3
+    STATE_COMPLETE = 4
+
+    STATE_NAMES = [
+      ["Awaiting Instructions", STATE_AWAITING],
+      ["Ready to Start", STATE_READY_TO_START],
+      ["Initial Testing", STATE_START_TEST],
+      ["On-Mission", STATE_ON_MISSION],
+      ["Mission Completed!", STATE_COMPLETE]
+    ].freeze
+
+    #
+    # Load a new mission from the missions directory.
+    def self.file_load(filename)
+      parse YAML.load(File.open(filename))
+    end
+
+    #
+    # Load a new mission from the missions directory.
+    def self.parse(data)
+      mission = new
+      mission.parse(data)
+      mission
+    end
 
     #
     # Create the attractors and repellors as well as the track array
@@ -53,6 +83,12 @@ module SGS
     # the waypoint we're working (-1 if none), @course is the heading/speed
     # the boat is on.
     def initialize
+      @title = nil
+      @url = nil
+      @description = nil
+      @state = STATE_AWAITING
+      @launch_site = nil
+      @launch_location = nil
       @attractors = []
       @repellors = []
       @track = nil
@@ -65,11 +101,16 @@ module SGS
     end
 
     #
-    # Load a new mission from the missions directory.
-    def self.load(filename)
-      mission = new
-      mission.read(File.open(filename))
-      mission
+    # Get the mission state - this is actually saved in the config block
+    def get_state
+      config = SGS::Config.load
+      @state = config.mission_state
+    end
+
+    #
+    # Print a user-friendly label for the state
+    def state_name
+      STATE_NAMES[@state][0]
     end
 
     #
@@ -246,135 +287,52 @@ module SGS
         loc = wpt.location
       end
       dist
-     end
-
-    #
-    # Parse a mission file.
-    def read(file)
-      file.each do |line|
-        unless line =~ /^#/
-          args = line.split(':')
-          code = args[0]
-          loc = Location.parse_str(args[1])
-          nrml = Bearing.dtor args[2].to_i
-          dist = args[3].to_f
-          name = args[4].chomp
-          case code
-          when /[Xx]/
-            @where = loc
-            @course.wind = Bearing.new(nrml, dist)
-          when /\d/
-            @attractors[code.to_i] = Waypoint.new(loc, nrml, dist, name)
-          when /[Rr]/
-            @repellors << Waypoint.new(loc, nrml, dist, name, true)
-          end
-        end
-      end
-      @current_wpt = -1
     end
 
     #
-    # Write a mission to a file.
-    def write(filename)
-      File.open(filename, 'w') do |file|
-        file.puts "#\n# My starting position."
-        file.puts ["X", @where.to_s, @course.wind.angle_d.to_i, @course.wind.distance.to_i, "Starting position"].join(':')
-        file.puts "#\n# Attractors."
-        @attractors.each_with_index do |wpt, i|
-          file.puts "%d:%s:%d:%f:%s" % [i,
-                                        wpt.location,
-                                        wpt.normal_d,
-                                        wpt.radius,
-                                        wpt.name]
-        end
-        file.puts "#\n# Repellors."
-        @repellors.each do |wpt|
-          file.puts "r:%s:%d:%f:%s" % [wpt.location,
-                                        wpt.normal_d,
-                                        wpt.radius,
-                                        wpt.name]
-        end
+    # Parse mission data from a hash.
+    def parse(data)
+      @title = data["title"] || "Untitled Mission"
+      @url = data["url"]
+      @description = data["description"]
+      if data["launch"]
+        @launch_site = data["launch"]["name"] || "Launch Site"
+        @launch_location = SGS::Location.parse data["launch"]
+      end
+      data["attractors"].each do |waypt_data|
+        waypt = Waypoint.parse(waypt_data)
+        waypt.attractor = true
+        @attractors << waypt
+      end
+      data["repellors"].each do |waypt_data|
+        waypt = Waypoint.parse(waypt_data)
+        waypt.attractor = false
+        @repellors << waypt
       end
     end
 
     #
-    # Save the track.
-    def track_save(filename)
-      kml_write(File.open(filename, 'w'))
+    # Return a YAML string from the mission data
+    def to_yaml
+      to_hash.to_yaml
     end
 
     #
-    # Write the track data as a KML file.
-#                xml.LineString {
-#                  xml.extrude 1
-#                  xml.tessellate 1
-#                  xml.coordinates wpt.to_kml
-#                }
-#              }
-#              xml.Placemark {
-#                xml.styleUrl "#attractorLine"
-#                xml.LineString {
-#                  xml.extrude 1
-#                  xml.tessellate 1
-#                  xml.coordinates wpt.to_axis_kml
-#                }
-#              }
-    def kml_write(file)
-      builder = Nokogiri::XML::Builder.new do |xml|
-        xml.kml('xmlns' => 'http://www.opengis.net/kml/2.2',
-                'xmlns:gx' => 'http://www.google.com/kml/ext/2.2') {
-          xml.Folder {
-            xml_line_style(xml, "attractorLine", "0xffcf0000", 4)
-            xml_line_style(xml, "repellorLine", "0xff00007f", 4)
-            xml_line_style(xml, "trackLine")
-            @attractors.each do |wpt|
-              xml.Placemark {
-                xml.name wpt.name
-                xml.styleUrl "#attractorLine"
-                xml.Point {
-                  xml.coordinates wpt.location.to_kml
-                }
-              }
-            end
-            @repellors.each do |wpt|
-              xml.Placemark {
-                xml.name wpt.name
-                xml.styleUrl "#repellorLine"
-                xml.Point {
-                  xml.coordinates wpt.location.to_kml
-                }
-              }
-            end
-            xml.Placemark {
-              xml.name "Track"
-              xml.styleUrl "#trackLine"
-              xml.GX_Track {
-                @track.each do |pt|
-                  xml.when pt.time.strftime('%Y-%m-%dT%H:%M:%S+00:00')
-                  end
-                @track.each do |pt|
-                  xml.GX_coord pt.location.to_kml(' ')
-                end
-              }
-            }
-          }
-        }
+    # Convert the mission into a hash
+    def to_hash
+      hash = {"title" => @title}
+      hash["url"] = @url if @url
+      hash["description"] = @description if @description
+      if @launch_location
+        hash["launch"] = @launch_location.to_hash
+        hash["launch"]["site"] = @launch_site
       end
-      # Requires a hack to get rid of the 'gx:' for the when tag.
-      file.puts builder.to_xml.gsub(/GX_/, 'gx:')
-    end
-
-    #
-    # Do a line style. The colour is of the form aabbggrr for some unknown
-    # reason...
-    def xml_line_style(xml, label, color = "0xffffffff", width = 1)
-      xml.Style(:id => label) {
-        xml.LineStyle {
-          xml.color color
-          xml.width width
-          xml.GX_labelVisibility 1
-        }
-      }
+      hash["attractors"] = []
+      @attractors.each do |waypt|
+        hash["attractors"] << waypt.to_hash
+      end
+      hash["repellors"] = []
+      hash
     end
   end
 end

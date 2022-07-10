@@ -141,11 +141,11 @@ module SGS
       #
       # Inside a multi-block, set all the variables and increment
       # the count.
-      SGS::RedisBase.redis.multi do
+      SGS::RedisBase.redis.multi do |pipeline|
         var_list.each do |key, value|
-          SGS::RedisBase.redis.set key, value
+          pipeline.set key, value
         end
-        SGS::RedisBase.redis.incr count_name
+        pipeline.incr count_name
       end
       true
     end

@@ -49,7 +49,7 @@ describe SGS do
     gps.time = Time.now
     gps.sog = 6.0
     gps.cmg = 1.4
-    gps.location = SGS::Location.parse_str("53N,9W")
+    #gps.location = SGS::Location.parse_str("53N,9W")
     expect(gps.save).to be true
   end
   

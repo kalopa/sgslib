@@ -34,7 +34,7 @@
 #
 
 ##
-# Routines for handling sailboat location and bearings.
+# Routines for handling sailboat location.
 #
 require 'date'
 require 'json'
@@ -105,41 +105,32 @@ module SGS
     end
 
     #
-    # Create a new location from a string.
+    # Create a new location from a lat/long hash.
     # Uses the instance method to parse.
-    def self.parse_str(str)
+    def self.parse(data)
       loc = new
-      loc.parse_str(str)
+      loc.parse(data)
       loc
     end
 
     #
-    # Create a new location from a lat/long string pair
-    # Uses the instance method to parse.
-    def self.parse(latstr, longstr)
-      loc = new
-      loc.parse(latstr, longstr)
-      loc
-    end
-
-    #
-    # Parse a lat/long value (in degrees)
-    def parse_str(str)
-      latstr, longstr = str.split(',')
-      parse(latstr, longstr)
-    end
-
-    #
-    # Parse a lat/long value pair (in degrees)
-    def parse(latstr, longstr)
-      @latitude = ll_parse(latstr.split, "NS")
-      @longitude = ll_parse(longstr.split, "EW")
+    # Set the lat/long from a hash.
+    def parse(data)
+      @latitude = ll_parse(data["latitude"], "NS")
+      @longitude = ll_parse(data["longitude"], "EW")
     end
 
     #
     # Is this location valid?
     def valid?
       @latitude and @longitude
+    end
+
+    #
+    # Convert the lat/long to a hash.
+    def to_hash
+      {"latitude" => ll_to_s(latitude, "NS"),
+        "longitude" => ll_to_s(longitude, "EW")}
     end
 
     #
@@ -194,8 +185,11 @@ module SGS
 
   private
     #
-    # Parse a string into a lat or long.
-    def ll_parse(args, nsew)
+    # Parse a string into a lat or long. The latitude or longitude string
+    # should be of the format dd mm ss.sssssC (where C is NS or EW). Note
+    # that latitude and longitude are saved internally in radians.
+    def ll_parse(value, nsew)
+      args = value.split
       dir = args[-1].gsub(/[\d\. ]+/, '').upcase
       args.map! {|val| val.to_f}
       val = args.shift
@@ -205,15 +199,22 @@ module SGS
     end
 
     #
-    #
+    # Convert a latitude or longitude into an ASCII string of the form:
+    # dd mm ss.ssssssC (where C is NS or EW). The value should be in
+    # radians.
     def ll_to_s(val, str)
+      val = Bearing.rtod val
       if val < 0.0
         chr = str[1]
         val = -val
       else
         chr = str[0]
       end
-      "%8.6f%c" % [Bearing.rtod(val), chr]
+      deg = val.to_i
+      val = (val - deg.to_f) * 60.0
+      min = val.to_i
+      sec = (val - min.to_f) * 60.0
+      "%d %d %8.6f%c" % [deg, min, sec, chr]
     end
 
     #
@@ -229,115 +230,6 @@ module SGS
       deg = val.to_i
       val = (val - deg) * 60
       [fmt % [deg, val], ne.chr]
-    end
-  end
-
-  ##
-  # Class for dealing with the angle/distance vector.
-  #
-  # Note that for convenience, we retain the angle in Radians. The
-  # distance is in nautical miles.
-  class Bearing
-    attr_accessor :distance
-
-    #
-    # Create the Bearing instance.
-    def initialize(angle = 0.0, distance = 0.0)
-      self.angle = angle.to_f
-      self.distance = distance.to_f
-    end
-
-    #
-    # Create a bearing from an angle in degrees.
-    def self.degrees(angle, distance)
-      new(Bearing.dtor(angle), distance)
-    end
-
-    #
-    # Handy function to translate degrees to radians
-    def self.dtor(deg)
-      deg.to_f * Math::PI / 180.0
-    end
-
-    #
-    # Handy function to translate radians to degrees
-    def self.rtod(rad)
-      rad.to_f * 180.0 / Math::PI
-    end
-
-    #
-    # Handy function to re-adjust an angle away from negative
-    def self.absolute(angle)
-      (angle + 2.0 * Math::PI) % (2.0 * Math::PI)
-    end
-
-    #
-    # Another handy function to re-adjust an angle (in degrees) away from
-    # negative.
-    def self.absolute_d(angle)
-      (angle + 360) % 360
-    end
-
-    #
-    # Haversine formula for calculating distance and angle, given two
-    # locations.
-    #
-    # To calculate an angle and distance from two positions:
-    #
-    # This code was derived from formulae on the Movable Type site:
-    # http://www.movable-type.co.uk/scripts/latlong.html
-    #
-    # var d = Math.acos(Math.sin(lat1)*Math.sin(lat2) + 
-    #                  Math.cos(lat1)*Math.cos(lat2) *
-    #                  Math.cos(lon2-lon1)) * R;
-    # var y = Math.sin(dLon) * Math.cos(lat2);
-    # var x = Math.cos(lat1)*Math.sin(lat2) -
-    #         Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);
-    # var angle = Math.atan2(y, x).toDeg();
-    def self.compute(loc1, loc2)
-      bearing = new
-      sin_lat1 = Math.sin(loc1.latitude)
-      sin_lat2 = Math.sin(loc2.latitude)
-      cos_lat1 = Math.cos(loc1.latitude)
-      cos_lat2 = Math.cos(loc2.latitude)
-      sin_dlon = Math.sin(loc2.longitude - loc1.longitude)
-      cos_dlon = Math.cos(loc2.longitude - loc1.longitude)
-      bearing.distance = Math.acos(sin_lat1*sin_lat2 + cos_lat1*cos_lat2*cos_dlon) *
-                                SGS::EARTH_RADIUS
-      y = sin_dlon * cos_lat2
-      x = cos_lat1 * sin_lat2 - sin_lat1 * cos_lat2 * cos_dlon
-      bearing.angle = Math.atan2(y, x)
-      bearing
-    end
-
-    #
-    # Set the angle
-    def angle=(angle)
-      @angle = Bearing.absolute(angle)
-    end
-
-    #
-    # Get the angle
-    def angle
-      @angle
-    end
-
-    #
-    # Return the angle (in degrees)
-    def angle_d
-      Bearing.rtod(@angle).to_i
-    end
-
-    #
-    # Get the back-angle (the angle viewed from the opposite end of the line)
-    def back_angle
-      Bearing.absolute(@angle - Math::PI)
-    end
-
-    #
-    # Convert to a string
-    def to_s
-      "BRNG %03dd,%.3fnm" % [angle_d, @distance]
     end
   end
 end

@@ -34,10 +34,13 @@
 #
 module SGS
   class Config < RedisBase
+    attr_accessor :mission_file, :mission_state
     attr_accessor :otto_device, :gps_device, :comm_device
     attr_accessor :otto_speed, :gps_speed, :comm_speed
 
     def initialize
+      @mission_file = "./mission.yaml"
+      @mission_state = Mission::STATE_AWAITING
       @otto_device = "/dev/ttyu0"
       @gps_device = "/dev/ttyu1"
       @comm_device = "/dev/ttyu2"

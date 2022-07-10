@@ -42,21 +42,41 @@ module SGS
   #
   # Waypoint, Attractor, and Repellor definitions
   class Waypoint < RedisBase
-    attr_accessor :location, :normal, :radius, :name, :repellor, :bearing
+    attr_accessor :location, :normal, :range, :name, :attractor
     attr_reader :bearing, :distance
+
+    @@count = 0
+
+    #
+    # Parse a waypoint from a hash. Uses the instance method to do the work.
+    def self.parse(data)
+      waypt = new
+      waypt.parse(data)
+      waypt
+    end
+
+    #
+    # Parse the waypoint data and save it
+    def parse(data)
+      @@count += 1
+      @name = data["name"] || "Waypoint ##{@@count}"
+      @location = SGS::Location.parse(data)
+      @normal = data["normal"] || 0.0
+      @range = data["range"] || 0.1
+    end
 
     #
     # Define a new Attractor or Repellor, based on certain parameters.
     # The location is the centre of the waypoint. The normal is the compass
-    # angle of the start of the semicircle, and the radius is the size of
+    # angle of the start of the semicircle, and the range is the size of
     # the arc. You can specify an optional name for the waypoint and also
     # indicate if we should be attracted or repelled by it.
-    def initialize(location = nil, normal = 0.0, radius = 0.1, name = "", repellor = false)
+    def initialize(location = nil, normal = 0.0, range = 0.1, name = "", attractor = true)
       @location = location || Location.new
       @normal = normal
-      @radius = radius
+      @range = range
       @name = name
-      @repellor = repellor
+      @attractor = attractor
       @bearing = nil
       @distance = 0
     end
@@ -74,8 +94,8 @@ module SGS
       d = Bearing.new(@bearing.back_angle - @normal, @bearing.distance)
       # A chord angle of 0 gives a semicircle from 0 to 180 degrees. If our
       # approach angle is within range, then reduce our distance to the mark
-      # by the chord distance (radius).
-      @distance -= @radius if d.angle >= 0.0 and d.angle < Math::PI
+      # by the chord distance (range).
+      @distance -= @range if d.angle >= 0.0 and d.angle < Math::PI
       @distance = 0.0 if @distance < 0.0
       @distance
     end
@@ -83,13 +103,13 @@ module SGS
     #
     # Is this an attractor?
     def attractor?
-      @repellor == false
+      @attractor == true
     end
 
     #
     # Is this a repellor?
     def repellor?
-      @repellor == true
+      @attractor == true
     end
 
     #
@@ -112,9 +132,19 @@ module SGS
     end
 
     #
+    # Convert to a hash
+    def to_hash
+      hash = @location.to_hash
+      hash["name"] = @name
+      hash["normal"] = @normal
+      hash["range"] = @range
+      hash
+    end
+
+    #
     # Pretty version of the waypoint.
     def to_s
-      "'#{@name}' at #{@location} => #{normal_d}%#{@radius}"
+      "'#{@name}' at #{@location} => #{normal_d}%#{@range}"
     end
 
     #

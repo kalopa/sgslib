@@ -41,8 +41,16 @@ require 'date'
 module SGS
   #
   # Waypoint, Attractor, and Repellor definitions
-  class Logger < RedisBase
+  class Log < RedisBase
     attr_accessor :watch
+
+    DEBUG = 0
+    INFO = 1
+    WARNING = 2
+    ALARM = 3
+    ERROR = 4
+
+    LEVEL_NAMES = %w{DEBUG INFO WARNING ALARM ERROR}.freeze
 
     #
     # Watch names and definitions. The first watch is from 8PM until
@@ -72,6 +80,42 @@ module SGS
       "Forenoon Watch", "Afternoon Watch", "Dog Watch",
       "", "** ALARM REPORT **"
     ].freeze
+
+    #
+    # Log DEBUG output
+    def self.debug(msg)
+      logmsg(DEBUG, msg)
+    end
+
+    #
+    # Log INFO output
+    def self.info(msg)
+      logmsg(INFO, msg)
+    end
+
+    #
+    # Log WARNING output
+    def self.warning(msg)
+      logmsg(WARNING, msg)
+    end
+
+    #
+    # Log ALARM output
+    def self.alarm(msg)
+      logmsg(ALARM, msg)
+    end
+
+    #
+    # Log ERROR output
+    def self.error(msg)
+      logmsg(ERROR, msg)
+    end
+
+    #
+    # Log any type of message
+    def self.logmsg(level, msg)
+      puts "%s: %s." % [LEVEL_NAMES[level], msg]
+    end
 
     def initialize()
       @watch = FIRST_WATCH
