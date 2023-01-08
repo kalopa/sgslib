@@ -45,5 +45,36 @@ module SGS
         sleep 300
       end
     end
+
+    #
+    # Create a new logging channel
+    def initialize(name)
+      @name = name
+      @filename = File.join("/app/log", name.to_s + ".log")
+    end
+
+    #
+    # Output any error messages
+    def error(msg)
+      puts "ERROR: #{@name} - #{msg}."
+    end
+
+    #
+    # Output any warning messages
+    def warning(msg)
+      puts "WARNING #{@name} - #{msg}."
+    end
+
+    #
+    # Output any info messages
+    def info(msg)
+      puts "INFO: #{@name} - #{msg}."
+    end
+
+    #
+    # Output any debug messages
+    def debug(msg)
+      puts "DEBUG: #{@name} - #{msg}."
+    end
   end
 end

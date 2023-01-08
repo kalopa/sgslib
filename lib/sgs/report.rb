@@ -32,6 +32,7 @@
 #
 # ABSTRACT
 #
+require 'serialport'
 
 ##
 # Routines for handling sailboat navigation and route planning.
@@ -41,6 +42,11 @@ module SGS
     #
     # Main daemon function (called from executable)
     def self.daemon
+      logger = SGS::Logger.new(:report)
+      logger.info "Reporting subsystem starting up..."
+      config = SGS::Config.load
+      sp = SerialPort.new config.comm_device, config.comm_speed
+      sp.read_timeout = 10000
       loop do
         sleep 300
       end

@@ -41,6 +41,8 @@ module SGS
     #
     # Main daemon function (called from executable)
     def self.daemon
+      logger = SGS::Logger.new(:diag)
+      logger.info "Diagnostics subsystem starting up..."
       loop do
         sleep 300
       end

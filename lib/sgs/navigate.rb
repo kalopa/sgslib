@@ -71,8 +71,28 @@ module SGS
     #
     # Main daemon function (called from executable)
     def self.daemon
-      loop do
-        sleep 300
+      logger = SGS::Logger.new(:navigate)
+      logger.info "Navigation system starting up..."
+      #
+      # Load the mission data from Redis and augment it with the
+      # contents of the mission file.
+      config = SGS::Config.load
+      mission = SGS::Mission.file_load config.mission_file
+      #
+      # Now listen for GPS data...
+      SGS::GPS.subscribe do |count|
+        logger.debug "Received new count: #{count}"
+        case SGS::MissionStatus.state
+        when STATE_COMPASS_FOLLOW
+        when STATE_WIND_FOLLOW
+          mission.navigate
+        when STATE_COMPLETE
+        when STATE_TERMINATED
+        when STATE_FAILURE
+          mission.hold_station
+        end
+        gps = SGS::GPS.load
+        p gps
       end
     end
 

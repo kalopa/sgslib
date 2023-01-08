@@ -51,6 +51,8 @@ module SGS
     #
     # Main daemon function (called from executable)
     def self.daemon
+      logger = SGS::Logger.new(:mission)
+      logger.info "Mission management system starting up..."
       loop do
         sleep 300
       end

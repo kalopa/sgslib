@@ -103,8 +103,14 @@ module SGS
     #
     # Main daemon function (called from executable)
     def self.daemon
+      logger = SGS::Logger.new(:alarm)
+      logger.info "Alarm daemon starting up..."
+      otto = SGS::RPCClient.new(:otto)
       loop do
-        sleep 300
+        logger.debug "Check for any alarms."
+        resp = otto.command "A?"
+        logger.debug "Response: #{resp}"
+        sleep 30
       end
     end
 

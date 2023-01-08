@@ -32,6 +32,8 @@
 #
 # ABSTRACT
 #
+require 'serialport'
+require 'msgpack'
 
 ##
 # Routines for interfacing with the low-level microcontroller.
@@ -58,7 +60,7 @@ module SGS
     # the sail angle.
     def initialize
       #
-	    # Configure the Mx + C values for sail and rudder
+      # Configure the Mx + C values for sail and rudder
       @rudder_m = 2.5
       @rudder_c = 100.0
       @sail_m = 2.0
@@ -75,8 +77,18 @@ module SGS
     end
 
     #
-    # Main daemon function (called from executable)
+    # Main daemon function (called from executable). The job of
+    # this daemon is to accept commands from the Redis pub/sub
+    # stream and send them to the low-level device, recording the
+    # response and sending it back to the caller. Note that we need
+    # to do an initial sync with the device as it will ignore the
+    # usual serial console boot-up gumph awaiting our sync message.
     def self.daemon
+      logger = SGS::Logger.new(:otto)
+      logger.info "Low-level (Otto) communication subsystem starting up..."
+      config = SGS::Config.load
+      sp = SerialPort.bew config.otto_device, config.otto_speed
+      sp.read_timeout = 10000
       loop do
         sleep 300
       end
