@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #
-# Copyright (c) 2014-2022, Kalopa Robotics Limited.  All rights
+# Copyright (c) 2014-2023, Kalopa Robotics Limited.  All rights
 # reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -42,107 +42,5 @@ require 'serialport'
 require 'msgpack'
 require 'sgslib'
 
-$logger = Logger.new(File.join("/app/log", File.basename(__FILE__) + ".log"))
-$logger.info(">> Low-level (Otto) communication system starting up...")
-
-class Otto
-  #
-  # Set up the serial port
-  def initialize
-    @config = SGS::Config.load
-    @sp = SerialPort.new @config.otto_device, @config.otto_speed
-    set_timeout
-    @command_stack = []
-  end
-
-  #
-  # Set the serial port timeout for reads.
-  def set_timeout(val = 2000)
-    @sp.read_timeout = val
-  end
-
-  #
-  # Synchronize with the low-level code. Because the system console
-  # will spew a lot of crap during startup, Otto will ignore all
-  # serial I/O until it sees a CQ sequence.
-  def synchronize
-    $logger.info "Synchronize with the low-level board."
-    initted = false
-    while not initted do
-      resp = command "@@CQ!"
-      if resp =~ /^\+CQOK/ or resp =~ /^\+OK/
-        initted = true
-        break
-      end
-      sleep 5
-    end
-  end
-
-  #
-  # Reader thread - get responses from Otto, and match them with the command
-  # stack, sending the response. Also read out-of-band data such as alarm and
-  # boat status while submitting that.
-  def reader_thread
-    $logger.info "Starting OTTO reader thread..."
-  end
-
-  #
-  # Writer thread - listen for commands on the Redis queue and send them out
-  # to Otto. Don't let the command stack get too big.
-  def writer_thread
-    $logger.info "Starting OTTO writer thread..."
-    #
-    # Now listen for Redis PUB/SUB requests and act on each one.
-    while true
-      channel, request = SGS::RedisBase.redis.brpop("otto")
-      request = MessagePack.unpack(request)
-      $logger.debug "Req:[#{request.inspect}]"
-      cmd = {
-        id: request['id'],
-        args: request['params'].unshift(request['method'])
-      }
-      $logger.debug "CMD:#{cmd.inspect}"
-      #
-      # Don't let the command stack get too big.
-      while @command_stack.length > 5
-        sleep 5
-      end
-
-      $logger.debug "> Sending command: #{str}"
-      @sp.write "#{str}\n"
-      begin
-        response = @sp.readline.chomp
-      rescue EOFError => error
-        $logger.error "Command '#{str}' timed out."
-        response = "-TMO"
-      end
-      $logger.debug "< Response: #{response}"
-      response
-
-      reply = {
-        'id' => id,
-        'jsonrpc' => '2.0',
-        'result' => result
-      }
-
-      SGS::RedisBase.redis.rpush(id, MessagePack.pack(reply))
-      SGS::RedisBase.redis.expire(id, 30)
-    end
-  end
-
-  #
-  # Run the communications service with Otto. Two threads are used, one for
-  # reading and one for writing. Don't let the command stack get too big.
-  def service
-    synchronize
-    t1 = Thread.new { reader_thread }
-    t2 = Thread.new { writer_thread }
-    t1.join
-    t2.join
-  end
-end
-
-otto = Otto.new
-otto.set_timeout 30000
-otto.service
+SGS::Otto.daemon
 exit 0

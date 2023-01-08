@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #
-# Copyright (c) 2014-2022, Kalopa Robotics Limited.  All rights
+# Copyright (c) 2014-2023, Kalopa Robotics Limited.  All rights
 # reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -39,30 +39,5 @@
 #
 require 'sgslib'
 
-$logger = Logger.new(File.join("/app/log", File.basename(__FILE__) + ".log"))
-$logger.info(">> Navigation system starting up...")
-
-#
-# Load the mission data from Redis and augment it with the contents of the
-# mission file.
-config = SGS::Config.load
-mission = SGS::Mission.file_load config.mission_file
-
-#
-# Now listen for GPS data
-$logger.info("Navigator is waiting for GPS data...")
-SGS::GPS.subscribe do |count|
-  $logger.debug "Received new count: #{count}"
-  case SGS::MissionStatus.state
-  when STATE_COMPASS_FOLLOW
-  when STATE_WIND_FOLLOW
-    mission.navigate
-  when STATE_COMPLETE
-  when STATE_TERMINATED
-  when STATE_FAILURE
-    mission.hold_station
-  end
-  gps = SGS::GPS.load
-  p gps
-end
+SGS::Navigate.daemon
 exit 0

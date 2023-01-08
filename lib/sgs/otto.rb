@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013-2022, Kalopa Robotics Limited.  All rights
+# Copyright (c) 2013-2023, Kalopa Robotics Limited.  All rights
 # reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -72,6 +72,14 @@ module SGS
       @bv_m = @bi_m = @bt_m = @sv_m = 1.0
       @bv_c = @bi_c = @bt_c = @sv_c = 0.0
       super
+    end
+
+    #
+    # Main daemon function (called from executable)
+    def self.daemon
+      loop do
+        sleep 300
+      end
     end
 
     #

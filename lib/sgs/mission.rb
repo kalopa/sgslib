@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #
-# Copyright (c) 2013-2022, Kalopa Robotics Limited.  All rights
+# Copyright (c) 2013-2023, Kalopa Robotics Limited.  All rights
 # reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -47,6 +47,14 @@ module SGS
     attr_accessor :launch_site, :launch_location
     attr_accessor :attractors, :repellors, :track
     attr_accessor :where, :time, :course, :distance
+
+    #
+    # Main daemon function (called from executable)
+    def self.daemon
+      loop do
+        sleep 300
+      end
+    end
 
     #
     # Load a new mission from the missions directory.

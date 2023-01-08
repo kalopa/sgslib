@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #
-# Copyright (c) 2022, Kalopa Robotics Limited.  All rights reserved.
+# Copyright (c) 2023, Kalopa Robotics Limited.  All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as

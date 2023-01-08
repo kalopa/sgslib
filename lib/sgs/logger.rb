@@ -34,26 +34,16 @@
 #
 
 ##
+# Routines for handling sailboat navigation and route planning.
 #
-require 'date'
-require 'logger'
-
-require "sgs/version"
-require 'sgs/redis_base'
-require 'sgs/config'
-require 'sgs/logger'
-require 'sgs/mission_status'
-require 'sgs/rpc'
-require 'sgs/location'
-require 'sgs/bearing'
-require 'sgs/nmea'
-require 'sgs/gps'
-require 'sgs/waypoint'
-require 'sgs/alarm'
-require 'sgs/timing'
-require 'sgs/otto'
-require 'sgs/course'
-require 'sgs/navigate'
-require 'sgs/mission'
-require 'sgs/diagnostics'
-require 'sgs/report'
+module SGS
+  class Logger < RedisBase
+    #
+    # Main daemon function (called from executable)
+    def self.daemon
+      loop do
+        sleep 300
+      end
+    end
+  end
+end

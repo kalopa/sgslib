@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013-2022, Kalopa Robotics Limited.  All rights
+# Copyright (c) 2013-2023, Kalopa Robotics Limited.  All rights
 # reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -33,5 +33,5 @@
 # ABSTRACT
 #
 module SGS
-  VERSION = "1.0.0"
+  VERSION = "1.5.0"
 end

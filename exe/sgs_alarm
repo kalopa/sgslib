@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #
-# Copyright (c) 2014-2022, Kalopa Robotics Limited.  All rights
+# Copyright (c) 2014-2023, Kalopa Robotics Limited.  All rights
 # reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -37,15 +37,5 @@
 #
 require 'sgslib'
 
-$logger = Logger.new(File.join("/app/log", File.basename(__FILE__) + ".log"))
-$logger.info(">> Alarm system starting up...")
-
-otto = SGS::RPCClient.new(:otto)
-loop do
-  # Check for any outstanding alarms...
-  $logger.debug "Check for any alarms."
-  resp = otto.command "A?"
-  $logger.debug "Response: #{resp}"
-  sleep 30
-end
+SGS:Alarm.daemon
 exit 0

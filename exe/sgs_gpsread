@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #
-# Copyright (c) 2014-2022, Kalopa Robotics Limited.  All rights
+# Copyright (c) 2014-2023, Kalopa Robotics Limited.  All rights
 # reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -36,23 +36,7 @@
 # the data to the Redis database, and also sending a GPS message to any
 # and all interested parties.
 #
-require 'serialport'
 require 'sgslib'
 
-$logger = Logger.new(File.join("/app/log", File.basename(__FILE__) + ".log"))
-$logger.info(">> GPS reader utility starting up...")
-
-config = SGS::Config.load
-
-sp = SerialPort.new config.gps_device, config.gps_speed
-sp.read_timeout = 10000
-
-loop do
-  nmea = SGS::NMEA.parse sp.readline
-  if nmea.is_gprmc?
-    gps = nmea.parse_gprmc
-    $logger.debug gps
-    gps.save_and_publish if gps and gps.valid?
-  end
-end
+SGS::GPS.daemon
 exit 0

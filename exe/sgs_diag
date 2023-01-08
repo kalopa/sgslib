@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #
-# Copyright (c) 2014-2022, Kalopa Robotics Limited.  All rights
+# Copyright (c) 2014-2023, Kalopa Robotics Limited.  All rights
 # reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -37,10 +37,5 @@
 #
 require 'sgslib'
 
-$logger = Logger.new(File.join("/app/log", File.basename(__FILE__) + ".log"))
-$logger.info(">> Diagnostics system starting up...")
-
-loop do
-  sleep 300
-end
+SGS::Diagnostics.daemon
 exit 0

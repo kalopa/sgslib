@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013-2022, Kalopa Robotics Limited.  All rights
+# Copyright (c) 2013-2023, Kalopa Robotics Limited.  All rights
 # reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -44,6 +44,14 @@ module SGS
       @magvar = nil
       @valid = false
       super()
+    end
+
+    #
+    # Main daemon function (called from executable)
+    def self.daemon
+      loop do
+        sleep 300
+      end
     end
 
     #

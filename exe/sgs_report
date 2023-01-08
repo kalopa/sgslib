@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 #
-# Copyright (c) 2014-2022, Kalopa Robotics Limited.  All rights
+# Copyright (c) 2014-2023, Kalopa Robotics Limited.  All rights
 # reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -40,15 +40,5 @@
 require 'serialport'
 require 'sgslib'
 
-logger = Logger.new(File.join("/app/log", File.basename(__FILE__) + ".log"))
-logger.info(">> Status reporting system starting up...")
-
-config = SGS::Config.load
-
-sp = SerialPort.new config.comm_device, config.comm_speed
-sp.read_timeout = 10000
-
-loop do
-  sleep 300
-end
+SGS::Report.daemon
 exit 0
