@@ -37,6 +37,9 @@
 #
 require 'sgslib'
 
+$logger = Logger.new(File.join("/app/log", File.basename(__FILE__) + ".log"))
+$logger.info(">> Diagnostics system starting up...")
+
 loop do
   sleep 300
 end

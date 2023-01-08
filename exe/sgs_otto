@@ -42,6 +42,9 @@ require 'serialport'
 require 'msgpack'
 require 'sgslib'
 
+$logger = Logger.new(File.join("/app/log", File.basename(__FILE__) + ".log"))
+$logger.info(">> Low-level (Otto) communication system starting up...")
+
 class Otto
   #
   # Set up the serial port
@@ -64,7 +67,7 @@ class Otto
   def synchronize
     initted = false
     while not initted do
-      resp = command "__CQ!"
+      resp = command "@@CQ!"
       if resp =~ /^\+CQOK/ or resp =~ /^\+OK/
         initted = true
         break
@@ -76,23 +79,23 @@ class Otto
   #
   # Send a command to Otto and wait for a response.
   def command(str)
-    puts "> Sending command: #{str}"
+    $logger.debug "> Sending command: #{str}"
     @sp.write "#{str}\n"
     begin
       response = @sp.readline.chomp
     rescue EOFError => error
-      puts "Command timed out."
+      $logger.error "Command '#{str}' timed out."
       response = "-TMO"
     end
-    puts "< Response: #{response}"
+    $logger.debug "< Response: #{response}"
     response
   end
 end
 
 otto = Otto.new
-puts "Synchronize with the low-level board."
+$logger.info "Synchronize with the low-level board."
 otto.synchronize
-puts "Starting OTTO service..."
+$logger.info "Starting OTTO service..."
 
 #
 # Now listen for Redis PUB/SUB requests and act on each one.
@@ -100,7 +103,7 @@ otto.set_timeout 30000
 while true
   channel, request = SGS::RedisBase.redis.brpop("otto")
   request = MessagePack.unpack(request)
-  puts "Req:[#{request.inspect}]"
+  $logger.debug "Req:[#{request.inspect}]"
   id = request['id']
 
   args = request['params'].unshift(request['method'])

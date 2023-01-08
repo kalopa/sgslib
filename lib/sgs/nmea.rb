@@ -98,7 +98,9 @@ module SGS
       mn = @args[9][2..3].to_i
       yy = @args[9][4..5].to_i + 2000
       gps.time = Time.gm(yy, mn, dd, hh, mm, ss, us)
-      gps.location = Location.parse ll_nmea(@args[3,4]), ll_nmea(@args[5,6])
+      pos = {"latitude" => ll_nmea(@args[3,4]),
+             "longitude" => ll_nmea(@args[5,6])}
+      gps.location = Location.parse pos
       gps.sog = @args[7].to_f
       gps.cmg = Bearing.dtor @args[8].to_f
       gps

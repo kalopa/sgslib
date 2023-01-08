@@ -39,6 +39,9 @@
 require 'serialport'
 require 'sgslib'
 
+$logger = Logger.new(File.join("/app/log", File.basename(__FILE__) + ".log"))
+$logger.info(">> GPS reader utility starting up...")
+
 config = SGS::Config.load
 
 sp = SerialPort.new config.gps_device, config.gps_speed
@@ -48,6 +51,7 @@ loop do
   nmea = SGS::NMEA.parse sp.readline
   if nmea.is_gprmc?
     gps = nmea.parse_gprmc
+    $logger.debug gps
     gps.save_and_publish if gps and gps.valid?
   end
 end

@@ -39,24 +39,29 @@
 #
 require 'sgslib'
 
+$logger = Logger.new(File.join("/app/log", File.basename(__FILE__) + ".log"))
+$logger.info(">> Navigation system starting up...")
+
 #
 # Load the mission data from Redis and augment it with the contents of the
 # mission file.
-SGS::Log.info("sgs_nav starting up")
-
 config = SGS::Config.load
 mission = SGS::Mission.file_load config.mission_file
 
-while mission.get_state < SGS::Mission::STATE_ON_MISSION
-  SGS::Log.info "Not in a mission - state is '#{mission.state_name}'..."
-  sleep 10
-end
-
 #
 # Now listen for GPS data
-SGS::Log.info("Waiting for GPS data...")
+$logger.info("Navigator is waiting for GPS data...")
 SGS::GPS.subscribe do |count|
-  SGS::Log.info "Received new count: #{count}"
+  $logger.debug "Received new count: #{count}"
+  case SGS::MissionStatus.state
+  when STATE_COMPASS_FOLLOW
+  when STATE_WIND_FOLLOW
+    mission.navigate
+  when STATE_COMPLETE
+  when STATE_TERMINATED
+  when STATE_FAILURE
+    mission.hold_station
+  end
   gps = SGS::GPS.load
   p gps
 end

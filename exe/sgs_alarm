@@ -37,12 +37,15 @@
 #
 require 'sgslib'
 
+$logger = Logger.new(File.join("/app/log", File.basename(__FILE__) + ".log"))
+$logger.info(">> Alarm system starting up...")
+
 otto = SGS::RPCClient.new(:otto)
 loop do
   # Check for any outstanding alarms...
-  puts "Check for any alarms."
+  $logger.debug "Check for any alarms."
   resp = otto.command "A?"
-  puts "Response: #{resp}"
+  $logger.debug "Response: #{resp}"
   sleep 30
 end
 exit 0

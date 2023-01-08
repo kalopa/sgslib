@@ -37,37 +37,16 @@
 ##
 # Routines for handling sailboat navigation and route planning.
 #
-require 'date'
 require 'yaml'
 
 module SGS
   #
   # Handle a specific mission.
   class Mission
-    attr_accessor :title, :url, :description, :state
+    attr_accessor :title, :url, :description
     attr_accessor :launch_site, :launch_location
     attr_accessor :attractors, :repellors, :track
     attr_accessor :where, :time, :course, :distance
-
-    STATE_AWAITING = 0
-    STATE_READY_TO_START = 1
-    STATE_START_TEST = 2
-    STATE_RADIO_CONTROL = 3
-    STATE_COMPASS_FOLLOW = 4
-    STATE_WIND_FOLLOW = 5
-    STATE_COMPLETE = 6
-    STATE_FAILURE = 7
-
-    STATE_NAMES = [
-      ["Awaiting Instructions", STATE_AWAITING],
-      ["Ready to Start", STATE_READY_TO_START],
-      ["Initial Testing", STATE_START_TEST],
-      ["On-Mission - Radio Control", STATE_RADIO_CONTROL],
-      ["On-Mission - Track Compass Heading", STATE_COMPASS_FOLLOW],
-      ["On-Mission - Track Wind Direction", STATE_WIND_FOLLOW],
-      ["Mission Completed!", STATE_COMPLETE],
-      ["Mission Failure", STATE_FAILURE]
-    ].freeze
 
     #
     # Load a new mission from the missions directory.
@@ -92,46 +71,16 @@ module SGS
       @title = nil
       @url = nil
       @description = nil
-      @state = STATE_AWAITING
       @launch_site = nil
       @launch_location = nil
       @attractors = []
       @repellors = []
       @track = nil
-      @current_wpt = -1
       @start_time = @time = nil
       @where = nil
       @course = Course.new
       @distance = 0
       @swing = 60
-    end
-
-    #
-    # Get the mission state - this is actually saved in the config block
-    def get_state
-      config = SGS::Config.load
-      @state = config.mission_state
-    end
-
-    #
-    # Print a user-friendly label for the state
-    def state_name
-      STATE_NAMES[@state][0]
-    end
-
-    #
-    # Commence a mission...
-    def commence(time = nil)
-      @start_time = @time = time || Time.now
-      @track = [TrackPoint.new(time, @where)]
-      @current_wpt = 0
-    end
-
-    #
-    # Terminate a mission.
-    def terminate
-      puts "***** Mission terminated! *****"
-      @current_wpt = -1
     end
 
     #
@@ -215,13 +164,6 @@ module SGS
     end
 
     #
-    # On-mission means we have something to do. In other words, we have a
-    # waypoint to get to.
-    def active?
-      @current_wpt >= 0 and @current_wpt < @attractors.count
-    end
-
-    #
     # How long has the mission been active?
     def elapsed
       @time - @start_time
@@ -230,7 +172,7 @@ module SGS
     #
     # Return the current waypoint.
     def waypoint
-      active? ? @attractors[@current_wpt] : nil
+     #@attractors[@current_wpt] : nil
     end
 
     #

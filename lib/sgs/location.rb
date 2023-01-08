@@ -36,7 +36,6 @@
 ##
 # Routines for handling sailboat location.
 #
-require 'date'
 require 'json'
 
 module SGS

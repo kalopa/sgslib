@@ -40,6 +40,9 @@
 require 'serialport'
 require 'sgslib'
 
+logger = Logger.new(File.join("/app/log", File.basename(__FILE__) + ".log"))
+logger.info(">> Status reporting system starting up...")
+
 config = SGS::Config.load
 
 sp = SerialPort.new config.comm_device, config.comm_speed

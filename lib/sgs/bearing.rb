@@ -36,7 +36,6 @@
 ##
 # Routines for handling sailboat bearings.
 #
-require 'date'
 require 'json'
 
 module SGS

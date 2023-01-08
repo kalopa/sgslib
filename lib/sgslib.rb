@@ -35,10 +35,13 @@
 
 ##
 #
+require 'date'
+require 'logger'
+
 require "sgs/version"
 require 'sgs/redis_base'
 require 'sgs/config'
-require 'sgs/log'
+require 'sgs/mission_status'
 require 'sgs/rpc'
 require 'sgs/location'
 require 'sgs/bearing'

@@ -36,8 +36,6 @@
 ##
 # Routines for handling sailboat navigation and route planning.
 #
-require 'date'
-
 module SGS
   #
   # Waypoint, Attractor, and Repellor definitions
