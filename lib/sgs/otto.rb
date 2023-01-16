@@ -43,6 +43,9 @@ module SGS
     attr_accessor :raw_rudder, :raw_sail, :raw_compass, :raw_awa, :raw_tc, :raw_ta
     attr_accessor :mode, :rudder_m, :rudder_c, :sail_m, :sail_c
     attr_accessor :bv_m, :bv_c, :bi_m, :bi_c, :bt_m, :bt_c, :sv_m, :sv_c
+    attr_accessor :serial_port
+    attr_reader :alarm_status, :wind, :compass, :actual_rudder, :actual_sail
+    attr_reader :otto_mode, :otto_timestamp, :telemetry
 
     MODE_INERT = 0
     MODE_DIAGNOSTICS = 1
@@ -59,6 +62,7 @@ module SGS
     # Set up some useful defaults. We assume rudder goes from 0 to 200 as does
     # the sail angle.
     def initialize
+      serial_port = nil
       #
       # Configure the Mx + C values for sail and rudder
       @rudder_m = 2.5
@@ -69,6 +73,12 @@ module SGS
       # Now set the rudder and sail to default positions (rudder is centered)
       rudder = 0.0
       sail = 0.0
+      #
+      # Set some defaults for the read-back parameters
+      @alarm_status = @wind = @compass = @actual_rudder = @actual_sail = 0
+      @otto_mode = 0
+      @otto_timestamp = 1000
+      @telemetry = Array.new(16)
       #
       # Set up some basic parameters for battery/solar readings
       @bv_m = @bi_m = @bt_m = @sv_m = 1.0
@@ -84,14 +94,161 @@ module SGS
     # to do an initial sync with the device as it will ignore the
     # usual serial console boot-up gumph awaiting our sync message.
     def self.daemon
-      logger = SGS::Logger.new(:otto)
-      logger.info "Low-level (Otto) communication subsystem starting up..."
+      puts "Low-level (Otto) communication subsystem starting up..."
+      otto = new
       config = SGS::Config.load
-      sp = SerialPort.bew config.otto_device, config.otto_speed
-      sp.read_timeout = 10000
-      loop do
-        sleep 300
+      otto.serial_port = SerialPort.new config.otto_device, config.otto_speed
+      otto.serial_port.read_timeout = 10000
+      #
+      # Start by getting a sync message from Otto.
+      otto.synchronize()
+      #
+      # Run the communications service with Otto. Two threads are used, one for
+      # reading and one for writing. Don't let the command stack get too big.
+      t1 = Thread.new { otto.reader_thread }
+      t2 = Thread.new { otto.writer_thread }
+      t1.join
+      t2.join
+    end
+
+    #
+    # Synchronize with the low-level board by sending CQ messages until
+    # they respond.
+    def synchronize
+      index = 0
+      backoffs = [1, 1, 1, 1, 2, 2, 3, 5, 10, 10, 20, 30, 60]
+      puts "Attempting to synchronize with Otto..."
+      while true do
+        begin
+          @serial_port.puts "@@CQ!"
+          resp = read_data
+          break if resp =~ /^\+CQOK/ or resp =~ /^\+OK/
+          sleep backoffs[index]
+          index += 1 if index < (backoffs.count - 1)
+        end
       end
+      puts "Synchronization complete!"
+    end
+
+    #
+    # Thread to read status messages from Otto and handle them
+    def reader_thread
+      puts "Starting OTTO reader thread..."
+      while true
+        data = read_data
+        next if data.nil? or data.length == 0
+        case data[0]
+        when '$'
+          #
+          # Status message (every second)
+          parse_status(data[1..])
+        when '@'
+          #
+          # Otto elapsed time (every four seconds)
+          parse_tstamp(data[1..])
+        when '!'
+          #
+          # Otto mode state (every four seconds)
+          parse_mode(data[1..])
+        when '>'
+          #
+          # Telemetry data (every two seconds)
+          parse_telemetry(data[1..])
+        end
+      end
+    end
+
+    #
+    # Thread to write commands direct to Otto.
+    def writer_thread
+      puts "Starting OTTO writer thread..."
+      #
+      # Now listen for Redis PUB/SUB requests and act on each one.
+      while true
+        channel, request = SGS::RedisBase.redis.brpop("otto")
+        request = MessagePack.unpack(request)
+        puts "Req:[#{request.inspect}]"
+        cmd = {
+          id: request['id'],
+          args: request['params'].unshift(request['method'])
+        }
+        puts "CMD:#{cmd.inspect}"
+        #
+        # Don't let the command stack get too big.
+        while @command_stack.length > 5
+          sleep 5
+        end
+
+        puts "> Sending command: #{str}"
+        @serial_port.puts "#{str}"
+
+        reply = {
+          'id' => id,
+          'jsonrpc' => '2.0',
+          'result' => result
+        }
+        SGS::RedisBase.redis.rpush(id, MessagePack.pack(reply))
+        SGS::RedisBase.redis.expire(id, 30)
+      end
+    end
+
+    #
+    # Read data from the serial port
+    def read_data
+      begin
+        data = @serial_port.readline.chomp
+      rescue EOFError => error
+        puts "Otto Read Timeout!"
+        data = nil
+      end
+      data
+    end
+
+    #
+    # Parse a status message from Otto. In the form:
+    # 0001:C000:0000
+    def parse_status(status)
+      puts "Parse status: #{status}"
+      args = status.split /:/
+      @alarm_status = args[0].to_i(16)
+      wc = args[1].to_i(16)
+      rs = args[2].to_i(16)
+      @wind = (wc >> 8) & 0xff
+      @compass = (wc & 0xff)
+      @actual_rudder = (rs >> 8) & 0xff
+      @actual_sail = (rs & 0xff)
+      p self
+      self.save_and_publish
+    end
+
+    #
+    # Parse a timestamp message from Otto. In the form: "000FE2" 24 bits
+    # representing the elapsed seconds since Otto restarted.
+    def parse_tstamp(tstamp)
+      puts "Parse timestamp: #{tstamp}"
+      newval = tstamp.to_i(16)
+      if newval < @otto_timestamp
+        puts "ALARM! Otto rebooted (or something)..."
+      end
+      @otto_timestamp = newval
+    end
+
+    #
+    # Parse a mode state message from Otto. In the form: "00". An eight bit
+    # quantity.
+    def parse_mode(mode)
+      puts "Parse Otto Mode State: #{mode}"
+      @otto_mode = mode.to_i(16)
+    end
+
+    #
+    # Parse a telemetry message from Otto. In the form: "7327" where the first
+    # character is the channel (0->9) and the remaining 12 bits are the value.
+    def parse_telemetry(telemetry)
+      puts "Parse Otto Telemetry Data: #{telemetry}"
+      data = telemetry.to_i(16)
+      chan = (data >> 12) & 0xf
+      @telemetry[chan] = data & 0xff
     end
 
     #

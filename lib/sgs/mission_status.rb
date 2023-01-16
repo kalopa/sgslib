@@ -73,7 +73,6 @@ module SGS
       @state = STATE_AWAITING
       @current_waypoint = 0
       @start_time = @end_time = nil
-      @logger = Logger.new(STDOUT)
     end
 
     #
@@ -91,7 +90,7 @@ module SGS
     #
     # Commence a mission...
     def start_test!(time = nil)
-      @logger.warn "***** Starting test phase *****"
+      puts "***** Starting test phase *****"
       @start_time = time || Time.now
       @state = STATE_START_TEST
       @current_waypoint = 0
@@ -104,7 +103,7 @@ module SGS
       @end_time = time || Time.now
       @state = STATE_COMPLETE
       save_and_publish
-      @logger.warn "***** Mission completed! *****"
+      puts "***** Mission completed! *****"
     end
 
     #
@@ -113,7 +112,7 @@ module SGS
       @end_time = time || Time.now
       @state = STATE_TERMINATED
       save_and_publish
-      @logger.warn "***** Mission terminated! *****"
+      puts "***** Mission terminated! *****"
     end
 
     #
@@ -122,7 +121,7 @@ module SGS
       @end_time = time || Time.now
       @state = STATE_FAILURE
       save_and_publish
-      @logger.warn "***** Mission failure! *****"
+      puts "***** Mission failure! *****"
     end
   end
 end

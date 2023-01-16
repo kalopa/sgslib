@@ -31,13 +31,10 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # ABSTRACT
-#
+# Include all of the various components.
 
 ##
 #
-require 'date'
-require 'logger'
-
 require "sgs/version"
 require 'sgs/redis_base'
 require 'sgs/config'

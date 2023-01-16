@@ -51,18 +51,17 @@ module SGS
     #
     # Main daemon function (called from executable)
     def self.daemon
-      logger = SGS::Logger.new(:gps)
-      logger.info "GPS reader starting up..."
+      puts "GPS reader starting up..."
       config = SGS::Config.load
 
-      sp = SeriaPort.new config.gps_device, config.gps_speed
+      sp = SerialPort.new config.gps_device, config.gps_speed
       sp.read_timeout = 10000
 
       loop do
         nmea = SGS::NMEA.parse sp.readline
         if nmea.is_gprmc?
           gps = nmea.parse_gprmc
-          logger.debug gps
+          p gps
           gps.save_and_publish if gps and gps.valid?
         end
       end

@@ -40,8 +40,10 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake", ">= 12.3.3"
   spec.add_development_dependency "rspec", "~> 3.0"
 
-  spec.add_runtime_dependency "logger", "~> 1.4"
+  spec.add_runtime_dependency "redis", "~> 4.7"
+  spec.add_runtime_dependency "serialport", "~> 1.3"
   spec.add_runtime_dependency "msgpack", "~> 1.3"
-
-  spec.add_dependency "redis", "~> 4.7"
+  spec.add_runtime_dependency "json"
+  spec.add_runtime_dependency "securerandom"
+  spec.add_runtime_dependency "yaml"
 end
