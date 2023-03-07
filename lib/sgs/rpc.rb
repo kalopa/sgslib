@@ -55,9 +55,8 @@ module SGS
         'method' => name,
         'params' => args
       }
-      SGS::RedisBase.redis.lpush(@channel, request.to_msgpack)
-      channel, response = SGS::RedisBase.redis.brpop(uuid, timeout=60)
-      MessagePack.unpack(response)['result']
+      puts "RPC CLIENT SENDING MESSAGE! request: #{request.inspect}, channel: #{@channel}"
+      RedisBase.redis.lpush(@channel, request.to_msgpack)
     end
   end
 
@@ -70,7 +69,7 @@ module SGS
     def start
       puts "Starting RPC server for #{@channel}"
       loop do
-        channel, request = SGS::RedisBase.redis.brpop(@channel)
+        channel, request = RedisBase.redis.brpop(@channel)
         request = MessagePack.unpack(request)
 
         puts "Working on request: #{request['id']}"
@@ -84,8 +83,8 @@ module SGS
           'id' => request['id']
         }
 
-        SGS::RedisBase.redis.rpush(request['id'], MessagePack.pack(reply))
-        SGS::RedisBase.redis.expire(request['id'], 30)
+        RedisBase.redis.rpush(request['id'], MessagePack.pack(reply))
+        RedisBase.redis.expire(request['id'], 30)
       end
     end
   end

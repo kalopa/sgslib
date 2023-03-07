@@ -37,7 +37,7 @@
 # Routines for handling sailboat navigation and route planning.
 #
 module SGS
-  class Diagnostics < RedisBase
+  class Diagnostics
     #
     # Main daemon function (called from executable)
     def self.daemon

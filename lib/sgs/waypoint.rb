@@ -39,7 +39,7 @@
 module SGS
   #
   # Waypoint, Attractor, and Repellor definitions
-  class Waypoint < RedisBase
+  class Waypoint
     attr_accessor :location, :normal, :range, :name, :attractor
     attr_reader :bearing, :distance
 
@@ -58,7 +58,7 @@ module SGS
     def parse(data)
       @@count += 1
       @name = data["name"] || "Waypoint ##{@@count}"
-      @location = SGS::Location.parse(data)
+      @location = Location.parse(data)
       @normal = data["normal"] || 0.0
       @range = data["range"] || 0.1
     end

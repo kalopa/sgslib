@@ -49,7 +49,8 @@ module SGS
     attr_accessor :distance
 
     #
-    # Create the Bearing instance.
+    # Create the Bearing instance. Angle is in radians, distance in nautical
+    # miles.
     def initialize(angle = 0.0, distance = 0.0)
       self.angle = angle.to_f
       self.distance = distance.to_f
@@ -71,6 +72,23 @@ module SGS
     # Handy function to translate radians to degrees
     def self.rtod(rad)
       rad.to_f * 180.0 / Math::PI
+    end
+
+    #
+    # Convert boat angle (0->255) to radians. The boat uses an 8bit quantity
+    # to represent an angle, where 256 maps to 360 degrees. This makes angle
+    # arithmetic quite simple on an 8 bit processor, but useless for
+    # something which has a proper FPU. These two helper functions convert
+    # to and from radians.
+    def self.xtor(val)
+      val &= 0xff
+      val.to_f * Math::PI / 128.0
+    end
+
+    #
+    # Convert radians to hex-degrees.
+    def self.rtox(rad)
+      (rad.to_f * 128.0 / Math::PI).round.to_i & 0xff
     end
 
     #
@@ -111,7 +129,7 @@ module SGS
       sin_dlon = Math.sin(loc2.longitude - loc1.longitude)
       cos_dlon = Math.cos(loc2.longitude - loc1.longitude)
       bearing.distance = Math.acos(sin_lat1*sin_lat2 + cos_lat1*cos_lat2*cos_dlon) *
-                                SGS::EARTH_RADIUS
+                                EARTH_RADIUS
       y = sin_dlon * cos_lat2
       x = cos_lat1 * sin_lat2 - sin_lat1 * cos_lat2 * cos_dlon
       bearing.angle = Math.atan2(y, x)
@@ -143,9 +161,19 @@ module SGS
     end
 
     #
+    # Return the distance in metres
+    def distance_m
+      @distance * 1852.0
+    end
+
+    #
     # Convert to a string
     def to_s
-      "BRNG %03dd,%.3fnm" % [angle_d, @distance]
+      if @distance > 0.9
+        "BRNG %03dd,%.3fNM" % [angle_d, @distance]
+      else
+        "BRNG %03dd,%.1fm" % [angle_d, distance_m]
+      end
     end
   end
 end

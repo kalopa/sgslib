@@ -34,15 +34,15 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.required_ruby_version = '>= 1.9.2'
+  spec.required_ruby_version = '>= 2.7.6'
 
   spec.add_development_dependency "bundler", "~> 2.2"
   spec.add_development_dependency "rake", ">= 12.3.3"
   spec.add_development_dependency "rspec", "~> 3.0"
 
-  spec.add_runtime_dependency "redis", "~> 4.7"
+  spec.add_runtime_dependency "redis", "~> 5.0"
   spec.add_runtime_dependency "serialport", "~> 1.3"
-  spec.add_runtime_dependency "msgpack", "~> 1.3"
+  spec.add_runtime_dependency "msgpack", "~> 1.6"
   spec.add_runtime_dependency "json"
   spec.add_runtime_dependency "securerandom"
   spec.add_runtime_dependency "yaml"

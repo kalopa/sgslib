@@ -32,6 +32,10 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # ABSTRACT
+# Mostly this class is for the overall daemon running on Mother. It takes
+# care of listening for GPS updates and adjusting the sailing route,
+# accordingly. It is responsible for keeping MissionStatus up to
+# date. The actual mission information is stored in a YAML file.
 #
 
 ##
@@ -45,15 +49,58 @@ module SGS
   class Mission
     attr_accessor :title, :url, :description
     attr_accessor :launch_site, :launch_location
-    attr_accessor :attractors, :repellors, :track
-    attr_accessor :where, :time, :course, :distance
+    attr_accessor :attractors, :repellors, :status
+
+    #
+    # Create the attractors and repellors as well as the track array
+    # and other items.
+    def initialize
+      @title = nil
+      @url = nil
+      @description = nil
+      @launch_site = nil
+      @launch_location = nil
+      @attractors = []
+      @repellors = []
+      @status = MissionStatus.load
+      super
+    end
 
     #
     # Main daemon function (called from executable)
     def self.daemon
       puts "Mission management system starting up..."
-      loop do
-        sleep 300
+      #
+      # Load the mission data from Redis and augment it with the
+      # contents of the mission file.
+      config = Config.load
+      mission = Mission.file_load config.mission_file
+      nav = Navigate.new(mission)
+      otto = Otto.load
+      #
+      # Keep running in our mission state, forever.
+      while true do
+        if mission.status.active?
+          #
+          # Listen for GPS data. When we have a new position, call the
+          # navigation code to determine a new course to sail (currently
+          # a compass course), and set the Otto register accordingly.
+          # Repeat until we run out of waypoints.
+          GPS.subscribe do |count|
+            puts "Mission received new GPS count: #{count}"
+            new_course = nav.navigate
+            if new_course.nil?
+              mission.status.completed!
+              break
+            end
+            mission.status.save
+            compass = Bearing.rtox(new_course.heading)
+            otto.set_register(Otto::COMPASS_HEADING_REGISTER, compass)
+          end
+        else
+          sleep 60
+          mission.status.load
+        end
       end
     end
 
@@ -72,199 +119,28 @@ module SGS
     end
 
     #
-    # Create the attractors and repellors as well as the track array
-    # and other items. @where is our current TrackPoint, @current_wpt is
-    # the waypoint we're working (-1 if none), @course is the heading/speed
-    # the boat is on.
-    def initialize
-      @title = nil
-      @url = nil
-      @description = nil
-      @launch_site = nil
-      @launch_location = nil
-      @attractors = []
-      @repellors = []
-      @track = nil
-      @start_time = @time = nil
-      @where = nil
-      @course = Course.new
-      @distance = 0
-      @swing = 60
-    end
-
-    #
-    # Compute the best heading based on our current position and the position
-    # of the current attractor. This is where the heavy-lifting happens
-    def navigate
-      return unless active?
-      puts "Attempting to navigate to #{waypoint}"
-      #
-      # First off, compute distance and bearing from our current location
-      # to every attractor and repellor.
-      @attractors[@current_wpt..-1].each do |waypt|
-        waypt.compute_bearing(@where)
-        puts "Angle: #{waypt.bearing.angle_d}, Distance: #{waypt.bearing.distance} (adj:#{waypt.distance})"
-      end
-      @repellors.each do |waypt|
-        waypt.compute_bearing(@where)
-        puts "Angle: #{waypt.bearing.angle_d}, Distance: #{waypt.bearing.distance} (adj:#{waypt.distance})"
-      end
-      #
-      # Right. Now look to see if we've achieved the current waypoint and
-      # adjust, accordingly
-      while active? and reached? do
-        next_waypoint!
-      end
-      return unless active?
-      puts "Angle to next waypoint: #{waypoint.bearing.angle_d}d"
-      puts "Adjusted distance to waypoint is #{@distance}"
-      #
-      # Now, start the vector field analysis by examining headings either side
-      # of the bearing to the waypoint.
-      best_course = @course
-      best_relvmg = 0.0
-      puts "Currently on a #{@course.tack_name} tack (heading is #{@course.heading_d} degrees)"
-      (-@swing..@swing).each do |alpha_d|
-        puts ">> Computing swing of #{alpha_d} degrees"
-        new_course = Course.new(@course.wind)
-        new_course.heading = waypoint.bearing.angle + Bearing.dtor(alpha_d)
-        #
-        # Ignore head-to-wind cases, as they're pointless.
-        next if new_course.speed < 0.001
-        puts "AWA:#{new_course.awa_d}, heading:#{new_course.heading_d}, speed:#{new_course.speed}"
-        relvmg = 0.0
-        relvmg = new_course.relative_vmg(@attractors[@current_wpt])
-        @attractors[@current_wpt..-1].each do |waypt|
-          relvmg += new_course.relative_vmg(waypt)
-        end
-        @repellors.each do |waypt|
-          relvmg -= new_course.relative_vmg(waypt)
-        end
-        relvmg *= 0.1 if new_course.tack != @course.tack
-        puts "Relative VMG: #{relvmg}"
-        if relvmg > best_relvmg
-          puts "Best heading (so far)"
-          best_relvmg = relvmg
-          best_course = new_course
-        end
-      end
-      puts "Best RELVMG: #{best_relvmg}"
-      puts "TACKING!" if best_course.tack != @course.tack
-      puts "New HDG: #{best_course.heading_d} (AWA:#{best_course.awa_d}), WPT:#{waypoint.name}"
-      @course = best_course
-    end
-
-    #
-    # Set new position
-    def set_position(time, loc)
-      @where = loc
-      @time = time
-      @track << TrackPoint.new(@time, @where)
-    end
-
-    #
-    # Advance the mission by a number of seconds (computing the new location
-    # in the process). Fake out the speed and thus the location.
-    def simulated_movement(how_long = 60)
-      puts "Advancing mission by #{how_long}s"
-      distance = @course.speed * how_long.to_f / 3600.0
-      puts "Travelled #{distance * 1852.0} metres in that time."
-      set_position(@time + how_long, @where + Bearing.new(@course.heading, distance))
-    end
-
-    #
-    # How long has the mission been active?
-    def elapsed
-      @time - @start_time
-    end
-
-    #
-    # Return the current waypoint.
-    def waypoint
-     #@attractors[@current_wpt] : nil
-    end
-
-    #
-    # Have we reached the waypoint? Note that even though the waypoints have
-    # a "reached" circle, we discard the last 10m on the basis that it is
-    # within the GPS error.
-    def reached?
-      @distance = @attractors[@current_wpt].distance
-      puts "ARE WE THERE YET? (dist=#{@distance})"
-      return true if @distance <= 0.0027
-      #
-      # Check to see if the next WPT is nearer than the current one
-      #if @current_wpt < (@attractors.count - 1)
-      #  next_wpt = @attractors[@current_wpt + 1]
-      #  brng = @attractors[@current_wpt].location - next_wpt.location
-      #  angle = Bearing.absolute(waypoint.bearing.angle - next_wpt.bearing.angle)
-      #  return true if brng.distance > next_wpt.distance and
-      #                 angle > (0.25 * Math::PI) and
-      #                 angle < (0.75 * Math::PI)
-      #end
-      puts "... Sadly, no."
-      return false
-    end
-
-    #
-    # Advance to the next waypoint. Return TRUE if
-    # there actually is one...
-    def next_waypoint!
-      raise "No mission currently active" unless active?
-      @current_wpt += 1
-      puts "Attempting to navigate to #{waypoint.name}" if active?
-    end
-
-    #
-    # Return the mission status as a string
-    def status_str
-      mins = elapsed / 60
-      hours = mins / 60
-      mins %= 60
-      days = hours / 24
-      hours %= 24
-      str = ">>> #{@time}, "
-      if days < 1
-        str += "%dh%02dm" % [hours, mins]
-      else
-        str += "+%dd%%02dh%02dm" % [days, hours, mins]
-      end
-      str + ": My position is #{@where}"
-    end
-
-    #
-    # Compute the remaining distance from the current location
-    def overall_distance
-      start_wpt = active? ? @current_wpt : 0
-      dist = 0.0
-      loc = @where
-      @attractors[start_wpt..-1].each do |wpt|
-        wpt.compute_bearing(loc)
-        dist += wpt.bearing.distance
-        loc = wpt.location
-      end
-      dist
-    end
-
-    #
     # Parse mission data from a hash.
     def parse(data)
       @title = data["title"] || "Untitled Mission"
       @url = data["url"]
       @description = data["description"]
       if data["launch"]
-        @launch_site = data["launch"]["name"] || "Launch Site"
-        @launch_location = SGS::Location.parse data["launch"]
+        @launch_site = data["launch"]["site"] || "Launch Site"
+        @launch_location = Location.parse data["launch"]
       end
-      data["attractors"].each do |waypt_data|
-        waypt = Waypoint.parse(waypt_data)
-        waypt.attractor = true
-        @attractors << waypt
+      if data["attractors"]
+        data["attractors"].each do |waypt_data|
+          waypt = Waypoint.parse(waypt_data)
+          waypt.attractor = true
+          @attractors << waypt
+        end
       end
-      data["repellors"].each do |waypt_data|
-        waypt = Waypoint.parse(waypt_data)
-        waypt.attractor = false
-        @repellors << waypt
+      if data["repellors"]
+        data["repellors"].each do |waypt_data|
+          waypt = Waypoint.parse(waypt_data)
+          waypt.attractor = false
+          @repellors << waypt
+        end
       end
     end
 

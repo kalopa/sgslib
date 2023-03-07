@@ -56,7 +56,7 @@ module SGS
     attr_accessor :latitude, :longitude
 
     #
-    # Create the Location instance.
+    # Create the Location instance. Latitude and longitude passed in radians.
     def initialize(lat = nil, long = nil)
       @latitude = lat.to_f if lat
       @longitude = long.to_f if long
@@ -65,7 +65,6 @@ module SGS
     #
     # The difference between two locations is a Bearing
     def -(loc)
-      puts "Distance from #{self} to #{loc}"
       Bearing.compute(self, loc)
     end
 
@@ -84,8 +83,8 @@ module SGS
       loc = Location.new
       sin_angle = Math.sin(bearing.angle)
       cos_angle = Math.cos(bearing.angle)
-      sin_dstr = Math.sin(bearing.distance / SGS::EARTH_RADIUS)
-      cos_dstr = Math.cos(bearing.distance / SGS::EARTH_RADIUS)
+      sin_dstr = Math.sin(bearing.distance / EARTH_RADIUS)
+      cos_dstr = Math.cos(bearing.distance / EARTH_RADIUS)
       sin_lat1 = Math.sin(@latitude)
       cos_lat1 = Math.cos(@latitude)
       loc.latitude = Math.asin(sin_lat1*cos_dstr + cos_lat1*sin_dstr*cos_angle)
@@ -113,10 +112,33 @@ module SGS
     end
 
     #
-    # Set the lat/long from a hash.
+    # Parse the lat/long values passed as a string. This function
+    # should be able to handle any type of lat/long string, in most
+    # general formats. See :to_s for examples.
     def parse(data)
-      @latitude = ll_parse(data["latitude"], "NS")
-      @longitude = ll_parse(data["longitude"], "EW")
+      llvals = data.split /,/
+      if llvals.count == 1
+        #
+        # Must be space-separated. Try that...
+        llvals = data.split(/ /)
+        if llvals.count != 2
+          raise ArgumentError.new "Cannot split lat/long values"
+        end
+      elsif llvals.count != 2
+        #
+        # Too many comma separators.
+        raise ArgumentError.new "Invalid lat/long values"
+      end
+      self.latitude_d = _ll_parse(llvals[0], "NS")
+      self.longitude_d = _ll_parse(llvals[1], "EW")
+      true
+    end
+
+    #
+    # Parse the lat/long from a hash object.
+    def parse_hash(data = {})
+      self.latitude_d = _ll_parse(data["latitude"], "NS")
+      self.longitude_d = _ll_parse(data["longitude"], "EW")
     end
 
     #
@@ -128,15 +150,21 @@ module SGS
     #
     # Convert the lat/long to a hash.
     def to_hash
-      {"latitude" => ll_to_s(latitude, "NS"),
-        "longitude" => ll_to_s(longitude, "EW")}
+      {"latitude" => latitude_d.round(6), "longitude" => longitude_d.round(6)}
     end
 
     #
-    # Display the lat/long as a useful string (in degrees).
-    def to_s
+    # Display the lat/long as a useful string (in degrees). Output
+    # formats are as follows (default is :d):
+    # :d    "48.104051, -7.282614"
+    # :dd   "48.104051N, 7.282614W"
+    # :dmm  "48 6.243060N, 7 16.956840W"
+    # :dms  "48 6 14.583600N, 7 16 57.410400W"
+    def to_s(opts = {})
       if valid?
-        "%s, %s" % [ll_to_s(@latitude, "NS"), ll_to_s(@longitude, "EW")]
+        lat_str = _ll_conv(latitude_d.round(6), "NS", opts)
+        lon_str = _ll_conv(longitude_d.round(6), "EW", opts)
+        "#{lat_str}, #{lon_str}"
       else
         "unknown"
       end
@@ -151,29 +179,39 @@ module SGS
     end
 
     #
-    # Helper functions for working in degrees.
+    # Return the latitude in degrees.
     def latitude_d
       Bearing.rtod @latitude
     end
 
+    #
+    # Set the latitude using a value in degrees.
     def latitude_d=(val)
       @latitude = Bearing.dtor val
     end
 
+    #
+    # Produce a latitude array for NMEA output.
     def latitude_array(fmt = nil)
-      make_ll_array latitude_d, "NS", fmt
+      _make_ll_array latitude_d, "NS", fmt
     end
 
+    #
+    # Return the longitude in degrees.
     def longitude_d
       Bearing.rtod @longitude
     end
 
+    #
+    # Set the longitude using a value in degrees.
     def longitude_d=(val)
       @longitude = Bearing.dtor val
     end
 
+    #
+    # Produce a longitude array for NMEA output.
     def longitude_array(fmt = nil)
-      make_ll_array longitude_d, "EW", fmt
+      _make_ll_array longitude_d, "EW", fmt
     end
 
     #
@@ -182,53 +220,71 @@ module SGS
       Bearing.compute(self, loc)
     end
 
-  private
-    #
-    # Parse a string into a lat or long. The latitude or longitude string
-    # should be of the format dd mm ss.sssssC (where C is NS or EW). Note
-    # that latitude and longitude are saved internally in radians.
-    def ll_parse(value, nsew)
-      args = value.split
-      dir = args[-1].gsub(/[\d\. ]+/, '').upcase
-      args.map! {|val| val.to_f}
-      val = args.shift
-      val = val + args.shift / 60.0 if args.length > 0
-      val = val + args.shift / 3600.0 if args.length > 0
-      Bearing.dtor val * ((nsew.index(dir) == 1) ? -1 : 1)
-    end
-
-    #
-    # Convert a latitude or longitude into an ASCII string of the form:
-    # dd mm ss.ssssssC (where C is NS or EW). The value should be in
-    # radians.
-    def ll_to_s(val, str)
-      val = Bearing.rtod val
-      if val < 0.0
-        chr = str[1]
-        val = -val
-      else
-        chr = str[0]
+    private
+      #
+      # Parse a latitude or longitude value, from a wide range of
+      # formats. Should handle D.ddd, D M.mmm and D M S.sss values.
+      # Can also strip out the special degrees unicode, as well as
+      # single and double quotes.
+      def _ll_parse(arg, nsew)
+        str = arg.chomp.gsub /[\u00B0'"]/, ' '
+        if str[-1].upcase =~ /[#{nsew}]/
+          sign = (str[-1].upcase == nsew[1]) ? -1 : 1
+          str[-1] = ' '
+        else
+          sign = 1
+        end
+        args = str.split
+        raise ArgumentError.new "Cannot parse lat/long value" if args.count > 3
+        value = 0.0
+        (args.count - 1).downto(0).each do |idx|
+          value = args[idx].to_f + value / 60.0
+        end
+        sign * value
       end
-      deg = val.to_i
-      val = (val - deg.to_f) * 60.0
-      min = val.to_i
-      sec = (val - min.to_f) * 60.0
-      "%d %d %8.6f%c" % [deg, min, sec, chr]
-    end
 
-    #
-    # Create a Lat/Long array suitable for an NMEA output
-    def make_ll_array(val, nsew, fmt = nil)
-      fmt ||= "%02d%07.4f"
-      if (val < 0)
-        val = -val
-        ne = nsew[1]
-      else
-        ne = nsew[0]
+      #
+      # Convert a latitude/longitude to a string. Can specify
+      # multiple output formats such as :d, :dd, :dmm, :dms to
+      # format according to various different styles.
+      def _ll_conv(value, nsew, opts)
+        format = opts[:format] || :d
+        return "%.6f" % value if format == :d
+        if value < 0.0
+          suffix = nsew[1]
+          value = -value
+        else
+          suffix = nsew[0]
+        end
+        case opts[:format] || :d
+        when :dd
+          "%.6f%s" % [value, suffix]
+        when :dmm
+          dd = value.to_i
+          mm = (value - dd.to_f) * 60.0
+          "%d %.6f%s" % [dd, mm, suffix]
+        when :dms
+          dd = value.to_i
+          value = (value - dd.to_f) * 60.0
+          mm = value.to_i
+          ss = (value - mm.to_f) * 60.0
+          "%d %d %.6f%s" % [dd, mm, ss, suffix]
+        end
       end
-      deg = val.to_i
-      val = (val - deg) * 60
-      [fmt % [deg, val], ne.chr]
-    end
+
+      #
+      # Create a Lat/Long array suitable for an NMEA output.
+      def _make_ll_array(val, nsew, fmt = nil)
+        fmt ||= "%02d%07.4f"
+        if (val < 0)
+          val = -val
+          suffix = nsew[1]
+        else
+          suffix = nsew[0]
+        end
+        deg = val.to_i
+        val = (val - deg) * 60
+        [fmt % [deg, val], suffix.chr]
+      end
   end
 end

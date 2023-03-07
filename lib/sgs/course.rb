@@ -149,11 +149,21 @@ module SGS
     end
 
     #
-    # Compute a relative VMG based on the waypoint
+    # Compute a relative VMG based on the waypoint. If you're computing
+    # angles to one waypoint, the relative VMG will allow you to compare
+    # against each possible angle. If you're computing to different
+    # waypoints, then the distance from your position to that waypoint is
+    # taken into consideration so that waypoints further away have less
+    # impact on your VMG choice.
     def relative_vmg(waypt)
-      relvmg = @speed * Math::cos(waypt.bearing.angle - @heading) / waypt.distance
-      puts "Relative VMG to WPT: #{waypt.name} is #{relvmg}"
-      relvmg
+      @speed * Math::cos(waypt.bearing.angle - @heading) / waypt.distance
+    end
+
+    #
+    # Compute the wind (as a Bearing) based on the compass heading and the
+    # apparent wind as reported.
+    def compute_wind
+      @wind.angle = @heading + @awa
     end
 
     #
@@ -161,7 +171,10 @@ module SGS
     # fast the boat will travel at the particular apparent wind angle.
     def compute_speed
       awa = @awa.abs
-      return 0.0 if awa < 0.75
+      if awa < 0.75
+        @speed = 0.0
+        return
+      end
       ap = 1.0
       @speed = 0.0
       @polar_curve.each do |poly_val|

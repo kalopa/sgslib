@@ -31,6 +31,13 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # ABSTRACT
+# This daemon handles all serial I/O with the low-level board (Otto). Otto
+# publishes various status messages at regular intervals, and has a series
+# of registers which can be used to alter the low-level operational state.
+# This daemon code has two threads. One thread listens for RPCs to update
+# Otto register state, and the other listens for status messages from Otto.
+# The class also has helper functions for converting between Otto data
+# formats (usually 8bit) and internal formats (usually floating point).
 #
 require 'serialport'
 require 'msgpack'
@@ -40,49 +47,87 @@ require 'msgpack'
 #
 module SGS
   class Otto < RedisBase
-    attr_accessor :raw_rudder, :raw_sail, :raw_compass, :raw_awa, :raw_tc, :raw_ta
-    attr_accessor :mode, :rudder_m, :rudder_c, :sail_m, :sail_c
+    attr_accessor :mode, :serial_port
     attr_accessor :bv_m, :bv_c, :bi_m, :bi_c, :bt_m, :bt_c, :sv_m, :sv_c
-    attr_accessor :serial_port
-    attr_reader :alarm_status, :wind, :compass, :actual_rudder, :actual_sail
+    attr_reader :alarm_status
+    attr_reader :actual_rudder, :actual_sail
     attr_reader :otto_mode, :otto_timestamp, :telemetry
 
-    MODE_INERT = 0
-    MODE_DIAGNOSTICS = 1
-    MODE_MANUAL = 2
-    MODE_TRACK_COMPASS = 3
-    MODE_TRACK_AWA = 4
-
-    MODE_NAMES = [
-      "Inert Mode", "Diagnostics Mode", "Manual Control Mode",
-      "Compass-Tracking Mode", "AWA-Tracking Mode"
-    ].freeze
+    #
+    # Updates to Otto are done by setting an 8bit register value, as below.
+    ALARM_CLEAR_REGISTER = 0
+    MISSION_CONTROL_REGISTER = 1
+    MODE_REGISTER = 2
+    BUZZER_REGISTER = 3
+    RUDDER_ANGLE_REGISTER = 4
+    SAIL_ANGLE_REGISTER = 5
+    COMPASS_HEADING_REGISTER = 6
+    MIN_COMPASS_REGISTER = 7
+    MAX_COMPASS_REGISTER =8
+    AWA_HEADING_REGISTER = 9
+    MIN_AWA_REGISTER = 10
+    MAX_AWA_REGISTER = 11
+    WAKE_DURATION_REGISTER = 12
+    NEXT_WAKEUP_REGISTER = 13
+    MAX_REGISTER = 14
 
     #
-    # Set up some useful defaults. We assume rudder goes from 0 to 200 as does
-    # the sail angle.
+    # This is different from mission mode. This mode defines how Otto should
+    # operate. Inert means "do nothing". Diagnostic mode is for the low-level
+    # code to run self-checks and calibrations. Manual means that the upper
+    # level system controls the rudder and sail angle without any higher-level
+    # PID controller. Track compass means that the boat will try to keep the
+    # actual compass reading within certain parameters, and track AWA will
+    # try to maintain a specific "apparent wind angle".
+    MODE_INERT = 0
+    MODE_DIAG = 1
+    MODE_MANUAL = 2
+    MODE_REMOTE = 3
+    MODE_TRACK_COMPASS = 4
+    MODE_TRACK_AWA = 5
+
+    #
+    # Define some tweaks for rudder and sail setting. Rudder goes from
+    # +/-40 degrees, with zero indicating a straight rudder. On Otto, this
+    # translates to 0 (for -40.0), 128 (for the zero position) and 255 (for
+    # +40 degrees of rudder). A fully trimmed-in sail is zero and a fully
+    # extended sail is 255 (0->100 from a function perspective).
+    RUDDER_MAX = 40.0
+    RUDDER_MIN = -40.0
+    RUDDER_M = 3.175
+    RUDDER_C = 128.0
+    SAIL_MAX = 100.0
+    SAIL_MIN = 0.0
+    SAIL_M = 2.55
+    SAIL_C = 0.0
+
+    #
+    # Set up some useful defaults. We assume rudder goes from 0 to 255 as does
+    # the sail angle. 
     def initialize
       serial_port = nil
       #
-      # Configure the Mx + C values for sail and rudder
-      @rudder_m = 2.5
-      @rudder_c = 100.0
-      @sail_m = 2.0
-      @sail_c = 0.0
-      #
-      # Now set the rudder and sail to default positions (rudder is centered)
-      rudder = 0.0
-      sail = 0.0
-      #
       # Set some defaults for the read-back parameters
-      @alarm_status = @wind = @compass = @actual_rudder = @actual_sail = 0
-      @otto_mode = 0
-      @otto_timestamp = 1000
+      # The following five parameters are reported back by Otto with a status
+      # message, and are read-only. @alarm_status is 16 bits while the other
+      # four are 8-bit values. The helper methods convert these 8-bit values
+      # into radians, etc. The telemetry parameters are used to capture
+      # telemetry data from Otto.
+      @alarm_status = 0
+      @actual_rudder = @actual_sail = @actual_awa = @actual_compass = 0
       @telemetry = Array.new(16)
+      #
+      # Mode is used by Otto to decide how to steer the boat and trim the
+      # sails.
+      @otto_mode = MODE_INERT
+      @otto_timestamp = 1000
       #
       # Set up some basic parameters for battery/solar readings
       @bv_m = @bi_m = @bt_m = @sv_m = 1.0
       @bv_c = @bi_c = @bt_c = @sv_c = 0.0
+      #
+      # RPC client / server
+      @rpc_client = @rpc_server = nil
       super
     end
 
@@ -96,7 +141,7 @@ module SGS
     def self.daemon
       puts "Low-level (Otto) communication subsystem starting up..."
       otto = new
-      config = SGS::Config.load
+      config = Config.load
       otto.serial_port = SerialPort.new config.otto_device, config.otto_speed
       otto.serial_port.read_timeout = 10000
       #
@@ -112,8 +157,30 @@ module SGS
     end
 
     #
+    # Build a C include file based on the current register definitions
+    def self.build_include(fname)
+      otto = new
+      File.open(fname, "w") do |f|
+        f.puts "/*\n * Autogenerated by #{__FILE__}.\n * DO NOT HAND-EDIT!\n */"
+        constants.sort.each do |c|
+          if c.to_s =~ /REGISTER$/
+            cval = Otto.const_get(c)
+            str = "#define SGS_#{c.to_s}"
+            str += "\t" if str.length < 32
+            str += "\t#{cval}"
+            f.puts str
+          end
+        end
+      end
+    end
+
+    #
     # Synchronize with the low-level board by sending CQ messages until
-    # they respond.
+    # they respond. When Mother boots up, the serial console is shared with
+    # Otto so a lot of rubbish is sent to the low-level board. To notify
+    # Otto that we are now talking sense, we send @@CQ! and Otto responds
+    # with +CQOK. Note that this function, which is always called before any
+    # of the threads, is bidirectional in terms of serial I/O.
     def synchronize
       index = 0
       backoffs = [1, 1, 1, 1, 2, 2, 3, 5, 10, 10, 20, 30, 60]
@@ -154,6 +221,10 @@ module SGS
           #
           # Telemetry data (every two seconds)
           parse_telemetry(data[1..])
+        when '*'
+          #
+          # Message for the debug log
+          parse_debug(data[1..])
         end
       end
     end
@@ -164,31 +235,19 @@ module SGS
       puts "Starting OTTO writer thread..."
       #
       # Now listen for Redis PUB/SUB requests and act on each one.
+      myredis = Redis.new
       while true
-        channel, request = SGS::RedisBase.redis.brpop("otto")
+        channel, request = myredis.brpop("otto")
         request = MessagePack.unpack(request)
         puts "Req:[#{request.inspect}]"
-        cmd = {
-          id: request['id'],
-          args: request['params'].unshift(request['method'])
-        }
-        puts "CMD:#{cmd.inspect}"
-        #
-        # Don't let the command stack get too big.
-        while @command_stack.length > 5
-          sleep 5
-        end
-
+        params = request['params']
+        next if request['method'] != "set_local_register"
+        puts "PARAMS: #{params}"
+        cmd = "R%d=%X\r\n" % params
+        puts "Command: #{cmd}"
+        @serial_port.write cmd
         puts "> Sending command: #{str}"
         @serial_port.puts "#{str}"
-
-        reply = {
-          'id' => id,
-          'jsonrpc' => '2.0',
-          'result' => result
-        }
-        SGS::RedisBase.redis.rpush(id, MessagePack.pack(reply))
-        SGS::RedisBase.redis.expire(id, 30)
       end
     end
 
@@ -208,13 +267,13 @@ module SGS
     # Parse a status message from Otto. In the form:
     # 0001:C000:0000
     def parse_status(status)
-      puts "Parse status: #{status}"
+      puts "OTTO PARSE: #{status}"
       args = status.split /:/
       @alarm_status = args[0].to_i(16)
       wc = args[1].to_i(16)
       rs = args[2].to_i(16)
-      @wind = (wc >> 8) & 0xff
-      @compass = (wc & 0xff)
+      @actual_awa = (wc >> 8) & 0xff
+      @actual_compass = (wc & 0xff)
       @actual_rudder = (rs >> 8) & 0xff
       @actual_sail = (rs & 0xff)
       p self
@@ -225,7 +284,6 @@ module SGS
     # Parse a timestamp message from Otto. In the form: "000FE2" 24 bits
     # representing the elapsed seconds since Otto restarted.
     def parse_tstamp(tstamp)
-      puts "Parse timestamp: #{tstamp}"
       newval = tstamp.to_i(16)
       if newval < @otto_timestamp
         puts "ALARM! Otto rebooted (or something)..."
@@ -237,7 +295,6 @@ module SGS
     # Parse a mode state message from Otto. In the form: "00". An eight bit
     # quantity.
     def parse_mode(mode)
-      puts "Parse Otto Mode State: #{mode}"
       @otto_mode = mode.to_i(16)
     end
 
@@ -245,80 +302,126 @@ module SGS
     # Parse a telemetry message from Otto. In the form: "7327" where the first
     # character is the channel (0->9) and the remaining 12 bits are the value.
     def parse_telemetry(telemetry)
-      puts "Parse Otto Telemetry Data: #{telemetry}"
       data = telemetry.to_i(16)
       chan = (data >> 12) & 0xf
-      @telemetry[chan] = data & 0xff
+      @telemetry[chan] = data & 0xfff
+    end
+
+    #
+    # Parse a debug message from the low-level code. Basically just append it
+    # to a log file.
+    def parse_debug(debug_data)
+      puts "DEBUG: [#{debug_data}].\n"
+    end
+
+    #
+    # Clear an alarm setting
+    def alarm_clear(alarm)
+      set_register(ALARM_CLEAR_REGISTER, alarm)
+    end
+
+    #
+    # Set the Otto mode
+    def mode=(val)
+      set_register(MODE_REGISTER, val) if @otto_mode != val
     end
 
     #
     # Set the required rudder angle. Input values range from +/- 40.0 degrees
     def rudder=(val)
-      val = -40.0 if val < -40.0
-      val = 40.0 if val > 40.0
-      @raw_rudder = (@rudder_m * val.to_f + @rudder_c).to_i
+      val = RUDDER_MIN if val < RUDDER_MIN
+      val = RUDDER_MAX if val > RUDDER_MAX
+      val = (RUDDER_M * val.to_f + RUDDER_C).to_i
+      if val != @actual_rudder
+        @actual_rudder = val
+        set_register(RUDDER_ANGLE_REGISTER, val)
+      end
+      mode = MODE_MANUAL
     end
 
     #
     # Return the rudder angle in degrees
     def rudder
-      (@raw_rudder.to_f - @rudder_c) / @rudder_m
+      (@actual_rudder.to_f - RUDDER_C) / RUDDER_M
     end
 
     #
-    # Set the required sail angle. Input values range from 0 -> 90 degrees.
+    # Set the required sail angle. Input values range from 0 -> 100.
     def sail=(val)
-      val = 0.0 if val < 0.0
-      val = 100.0 if val > 100.0
-      @raw_sail = (@sail_m * val.to_f + @sail_c).to_i
+      val = SAIL_MIN if val < SAIL_MIN
+      val = SAIL_MAX if val > SAIL_MAX
+      val = (SAIL_M * val.to_f + SAIL_C).to_i
+      if val != @actual_sail
+        @actual_sail = val
+        set_register(SAIL_ANGLE_REGISTER, val)
+      end
+      mode = MODE_MANUAL
     end
 
     #
     # Return the sail setting (0.0 -> 100.0)
     def sail
-      (@raw_sail.to_f - @sail_c) / @sail_m
+      (@actual_sail.to_f - SAIL_C) / SAIL_M
     end
 
     #
     # Return the compass angle (in radians)
     def compass
-      @raw_compass.to_f * Math::PI / 128.0
+      Bearing.xtor(@actual_compass)
     end
 
     #
     # Return the apparent wind angle (in radians)
     def awa
-      @raw_awa.to_f * Math::PI / 128.0
+      @actual_awa -= 256 if @actual_awa > 128
+      Bearing.xtor(@actual_awa)
     end
 
     #
-    # Set the required compass reading. Input values range from 0 -> 359 degrees
+    # Return the actual wind direction (in radians)
+    def wind
+      Bearing.xtor(@actual_compass + @actual_awa)
+    end
+
+    #
+    # Set the required compass reading (in radians)
     def track_compass=(val)
-      while val < 0.0
-        val += 360.0
+      val = Bearing.rtox(val)
+      if @track_compass.nil? or @track_compass != val
+        @track_compass = val
+        set_register(COMPASS_HEADING_REGISTER, val)
       end
-      val %= 360.0
-      @raw_tc = (val.to_f * 128.0 / Math::PI).to_i
+      mode = MODE_TRACK_COMPASS
     end
 
     #
     # Return the compass value for tracking.
     def track_compass
-      @raw_tc.to_f * Math::PI / 128.0
+      Bearing.xtor(@track_compass)
     end
 
     #
-    # Set the required AWA for tracking.
+    # Set the required AWA for tracking (in radians).
     def track_awa=(val)
-      val = -180.0 if val < -180.0
-      val = 180.0 if val > 180.0
-      @raw_ta = (val.to_f * 128.0 / Math::PI).to_i
+      val = Bearing.rtox(val)
+      if @track_awa.nil? or @track_awa != val
+        @track_awa = val
+        set_register(AWA_HEADING_REGISTER, val)
+      end
+      mode = MODE_TRACK_AWA
     end
 
     #
-    # Return the current tracking AWA.
+    # Return the current tracking AWA (in radians).
     def track_awa
-      @raw_ta.to_f * Math::PI / 128.0
+      Bearing.xtor(@track_awa)
+    end
+
+    #
+    # RPC client call to set register - sent to writer function above
+    def set_register(regno, value)
+      @rpc_client = RPCClient.new("otto") unless @rpc_client
+      @rpc_client.set_local_register(regno, value)
     end
   end
 end

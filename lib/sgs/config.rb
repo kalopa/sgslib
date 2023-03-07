@@ -56,7 +56,6 @@ module SGS
       GPS.setup
       Otto.setup
       Timing.setup
-      Waypoint.setup
     end
   end
 end

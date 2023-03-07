@@ -37,6 +37,6 @@
 # Routines for handling sailboat navigation and route planning.
 #
 module SGS
-  class Logger < RedisBase
+  class Logger
   end
 end

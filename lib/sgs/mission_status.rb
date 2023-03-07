@@ -31,16 +31,26 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # ABSTRACT
+# This class is used to store the actual mission status. As the SGS::Mission
+# class doesn't actually store anything in Redis. Nor does the SGS::Navigate
+# class. In order to save the mission and navigation details, this class
+# manages that information. Note that only the SGS::Mission daemon should
+# save this object, to avoid race conditions.
+#
+# The state here refers to the mission states, as opposed to Otto modes.
+# Initially the boat will be in AWAITING mode until something wakes it up. At
+# that point it may go to READY_TO_START or START_TEST followed by something
+# like pre-mission trying to sail to a start line or awaiting mission control.
 #
 
 ##
-# Mission state
+# Mission status
 #
 module SGS
   #
   # Handle a specific mission.
   class MissionStatus < RedisBase
-    attr_accessor :state, :current_waypoint, :start_time, :end_time
+    attr_accessor :state, :current_waypoint, :course, :distance, :start_time, :end_time
 
     STATE_AWAITING = 0
     STATE_READY_TO_START = 1
@@ -71,8 +81,10 @@ module SGS
     # the boat is on.
     def initialize
       @state = STATE_AWAITING
-      @current_waypoint = 0
-      @start_time = @end_time = nil
+      @current_waypoint = -1
+      @where = nil
+      @distance = 0
+      @track = nil
     end
 
     #

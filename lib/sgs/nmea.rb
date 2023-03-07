@@ -87,7 +87,7 @@ module SGS
       if @args.count < 12 or @args.count > 13
         return nil
       end
-      gps = SGS::GPS.new
+      gps = GPS.new
       gps.is_valid if @args[2] == "A"
       hh = @args[1][0..1].to_i
       mm = @args[1][2..3].to_i
@@ -100,7 +100,8 @@ module SGS
       gps.time = Time.gm(yy, mn, dd, hh, mm, ss, us)
       pos = {"latitude" => ll_nmea(@args[3,4]),
              "longitude" => ll_nmea(@args[5,6])}
-      gps.location = Location.parse pos
+      gps.location = Location.new
+      gps.location.parse_hash(pos)
       gps.sog = @args[7].to_f
       gps.cmg = Bearing.dtor @args[8].to_f
       gps

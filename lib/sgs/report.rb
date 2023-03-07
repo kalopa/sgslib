@@ -38,12 +38,12 @@ require 'serialport'
 # Routines for handling sailboat navigation and route planning.
 #
 module SGS
-  class Report < RedisBase
+  class Report
     #
     # Main daemon function (called from executable)
     def self.daemon
       puts "Reporting subsystem starting up..."
-      config = SGS::Config.load
+      config = Config.load
       sp = SerialPort.new config.comm_device, config.comm_speed
       sp.read_timeout = 10000
       loop do

@@ -75,7 +75,7 @@ module SGS
     # Initialize a Redis variable.
     def self.var_init(var, val, idx = nil)
       cls = new
-      SGS::RedisBase.redis.setnx cls.make_redis_name(var, :idx => idx), self.to_redis(var, val, idx)
+      RedisBase.redis.setnx cls.make_redis_name(var, :idx => idx), self.to_redis(var, val, idx)
     end
 
     #
@@ -96,8 +96,8 @@ module SGS
           # It's an array - iterate and read the values.
           lval.size.times do |idx|
             idx_val = lval[idx]
-            lval[idx] = redis_read_var var, idx_val.class, :idx => idx
-          end
+            lval[idx] = redis_read_var var, idx_val.class, :idx => idx 
+         end
         elsif lval.kind_of? Location
           #
           # ::FIXME:: Yes. this is a hack.
@@ -141,7 +141,7 @@ module SGS
       #
       # Inside a multi-block, set all the variables and increment
       # the count.
-      SGS::RedisBase.redis.multi do |pipeline|
+      RedisBase.redis.multi do |pipeline|
         var_list.each do |key, value|
           pipeline.set key, value
         end
@@ -157,7 +157,7 @@ module SGS
     # class name), you can remember the last received count and decide if
     # there is fresh data. Or, you can just act anyway.
     def publish
-      SGS::RedisBase.redis.publish self.class.redis_handle, count.to_s
+      RedisBase.redis.publish self.class.redis_handle, count.to_s
     end
 
     #
@@ -182,7 +182,7 @@ module SGS
     #
     # Retrieve the count
     def count
-      SGS::RedisBase.redis.get count_name
+      RedisBase.redis.get count_name
     end
 
     #
@@ -195,7 +195,7 @@ module SGS
     # Get an instance variable value from a Redis value.
     def redis_read_var(var, klass, opts = {})
       redis_name = make_redis_name var, opts
-      redis_val = SGS::RedisBase.redis.get redis_name
+      redis_val = RedisBase.redis.get redis_name
       redis_val = nil if redis_val == ""
       if redis_val
         if not klass or klass == NilClass
@@ -211,9 +211,9 @@ module SGS
         when klass == Float
           redis_val = redis_val.to_f
         when klass == FalseClass
-          redis_val = false
+          redis_val = (redis_val == "true" or redis_val == "TRUE")
         when klass == TrueClass
-          redis_val = true
+          redis_val = (redis_val == "true" or redis_val == "TRUE")
         end
       end
       redis_val

@@ -36,8 +36,10 @@ require 'serialport'
 
 module SGS
   class GPS < RedisBase
-    attr_accessor :time, :location, :sog, :cmg, :magvar
+    attr_accessor :time, :location, :sog, :cmg, :magvar, :val
 
+    #
+    # Create a new GPS record. Lat/Long are in radians.
     def initialize(lat = nil, long = nil)
       @time = Time.new(2000, 1, 1)
       @location = Location.new(lat, long)
@@ -52,19 +54,27 @@ module SGS
     # Main daemon function (called from executable)
     def self.daemon
       puts "GPS reader starting up..."
-      config = SGS::Config.load
+      config = Config.load
 
       sp = SerialPort.new config.gps_device, config.gps_speed
       sp.read_timeout = 10000
 
       loop do
-        nmea = SGS::NMEA.parse sp.readline
+        nmea = NMEA.parse sp.readline
         if nmea.is_gprmc?
           gps = nmea.parse_gprmc
           p gps
           gps.save_and_publish if gps and gps.valid?
         end
       end
+    end
+
+    #
+    # Hard-code a GPS value (usually for debugging purposes)
+    def force(lat, long, time = nil)
+      @time = time || Time.now
+      @location = Location.new(lat, long)
+      @valid = true
     end
 
     #
@@ -77,6 +87,16 @@ module SGS
     # Is the GPS data valid?
     def valid?
       @valid == true
+    end
+
+    #
+    # Display the GPS data as a useful string (in degrees)
+    def to_s
+      if valid?
+        "@#{@time.strftime('%Y%m%d-%T')}, #{@location}, SOG:#{@sog}, CMG:#{@cmg}"
+      else
+        "GPS error"
+      end
     end
   end
 end
