@@ -69,7 +69,16 @@ module SGS
     MAX_AWA_REGISTER = 11
     WAKE_DURATION_REGISTER = 12
     NEXT_WAKEUP_REGISTER = 13
-    MAX_REGISTER = 14
+    RUDDER_PID_P = 14
+    RUDDER_PID_I = 15
+    RUDDER_PID_D = 16
+    RUDDER_PID_E_NUM = 17
+    RUDDER_PID_E_DEN = 18
+    RUDDER_PID_U_DIV = 19
+    SAIL_MXC_M_VALUE = 20
+    SAIL_MXC_C_VALUE = 21
+    SAIL_MXC_U_DIV = 22
+    MAX_REGISTER = 23
 
     #
     # This is different from mission mode. This mode defines how Otto should

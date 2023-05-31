@@ -227,6 +227,7 @@ module SGS
       # Can also strip out the special degrees unicode, as well as
       # single and double quotes.
       def _ll_parse(arg, nsew)
+        return arg.to_f if arg.kind_of? Float or arg.kind_of? Integer
         str = arg.chomp.gsub /[\u00B0'"]/, ' '
         if str[-1].upcase =~ /[#{nsew}]/
           sign = (str[-1].upcase == nsew[1]) ? -1 : 1

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013-2023, Kalopa Robotics Limited.  All rights
+# Copyright (c) 2014-2023, Kalopa Robotics Limited.  All rights
 # reserved.
 #
 # This program is free software; you can redistribute it and/or
@@ -32,6 +32,25 @@
 #
 # ABSTRACT
 #
-module SGS
-  VERSION = "1.7.1"
+require 'spec_helper'
+
+describe SGS::Alarm do
+  describe '#name' do
+    it 'returns the correct name for an alarm code' do
+      alarm = SGS::Alarm.new
+      expect(alarm.name(SGS::Alarm::VBATT_CRITICAL)).to eq("Battery voltage is critically low")
+    end
+  end
+
+  describe '.build_include' do
+    it 'creates an include file with the correct alarm definitions' do
+      fname = "test_alarm_include.h"
+      SGS::Alarm.build_include(fname)
+      file_contents = File.read(fname)
+      expect(file_contents).to include("#define SGS_ALARM_MISSION_SWITCH\t0\t/* Mission Activation Switch */")
+      expect(file_contents).to include("#define SGS_ALARM_RUDDSRV_FAULT\t1\t/* Rudder Servo Fault */")
+      # Check more alarm definitions here
+      File.delete(fname)
+    end
+  end
 end

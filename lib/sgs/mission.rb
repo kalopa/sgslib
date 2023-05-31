@@ -126,7 +126,8 @@ module SGS
       @description = data["description"]
       if data["launch"]
         @launch_site = data["launch"]["site"] || "Launch Site"
-        @launch_location = Location.parse data["launch"]
+        @launch_location = Location.new
+        @launch_location.parse_hash data["launch"]
       end
       if data["attractors"]
         data["attractors"].each do |waypt_data|

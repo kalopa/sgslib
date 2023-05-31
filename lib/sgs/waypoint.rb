@@ -58,7 +58,8 @@ module SGS
     def parse(data)
       @@count += 1
       @name = data["name"] || "Waypoint ##{@@count}"
-      @location = Location.parse(data)
+      @location = Location.new
+      @location.parse_hash(data)
       @normal = data["normal"] || 0.0
       @range = data["range"] || 0.1
     end
