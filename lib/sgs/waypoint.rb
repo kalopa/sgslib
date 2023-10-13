@@ -137,7 +137,7 @@ module SGS
       hash["name"] = @name
       hash["normal"] = @normal
       hash["range"] = @range
-      hash
+      return hash
     end
 
     #

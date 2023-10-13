@@ -34,5 +34,7 @@
 #
 require 'spec_helper'
 
-describe SGS::Report do
+module SGS
+  describe Report do
+  end
 end

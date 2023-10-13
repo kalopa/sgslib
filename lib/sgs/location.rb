@@ -75,9 +75,9 @@ module SGS
     # This code was derived from formulae on the Movable Type site:
     # http://www.movable-type.co.uk/scripts/latlong.html
     #
-    # var lat2 = Math.asin( Math.sin(lat1)*Math.cos(d/R) + 
+    # var lat2 = Math.asin( Math.sin(lat1)*Math.cos(d/R) +
     #              Math.cos(lat1)*Math.sin(d/R)*Math.cos(angle) );
-    # var lon2 = lon1 + Math.atan2(Math.sin(angle)*Math.sin(d/R)*Math.cos(lat1), 
+    # var lon2 = lon1 + Math.atan2(Math.sin(angle)*Math.sin(d/R)*Math.cos(lat1),
     #                     Math.cos(d/R)-Math.sin(lat1)*Math.sin(lat2));
     def +(bearing)
       loc = Location.new
@@ -144,7 +144,7 @@ module SGS
     #
     # Is this location valid?
     def valid?
-      @latitude and @longitude
+      !@latitude.nil? and !@longitude.nil?
     end
 
     #

@@ -142,6 +142,8 @@ module SGS
           best_course = new_course
         end
       end
+      puts "Best course:"
+      p best_course
       if best_course.tack != @course.tack
         puts "TACKING!!!!"
       end

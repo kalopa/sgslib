@@ -34,5 +34,7 @@
 #
 require 'spec_helper'
 
-describe SGS::Timing do
+module SGS
+  describe Timing do
+  end
 end

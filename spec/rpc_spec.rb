@@ -34,8 +34,10 @@
 #
 require 'spec_helper'
 
-describe SGS::RPCClient do
-end
+module SGS
+  describe RPCClient do
+  end
 
-describe SGS::RPCServer do
+  describe RPCServer do
+  end
 end

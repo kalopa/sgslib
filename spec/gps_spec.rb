@@ -34,5 +34,63 @@
 #
 require 'spec_helper'
 
-describe SGS::GPS do
+module SGS
+  describe GPS do
+    let(:gps) { GPS.new }
+
+    describe '.initialize' do
+      it 'sets the initial values correctly' do
+        expect(gps.time).to be_a(Time)
+        expect(gps.location).to be_a(Location)
+        expect(gps.sog).to eq(0.0)
+        expect(gps.cmg).to eq(0.0)
+        expect(gps.magvar).to be_nil
+        expect(gps.valid?).to be_falsey
+      end
+    end
+
+    describe '.force' do
+      it 'forces a GPS location and time' do
+        lat = 52.370216
+        long = 4.895168
+        time = Time.new(2023, 6, 19, 10, 30, 0)
+
+        gps.force(lat, long, time)
+
+        expect(gps.time).to eq(time)
+        expect(gps.location.latitude).to eq(lat)
+        expect(gps.location.longitude).to eq(long)
+        expect(gps.valid?).to be_truthy
+      end
+    end
+
+    describe '.is_valid' do
+      it 'sets the validity to true' do
+        gps.is_valid
+        expect(gps.valid?).to be_truthy
+      end
+    end
+
+    describe '.to_s' do
+      context 'when GPS data is valid' do
+        it 'returns a string representation of the GPS data' do
+          lat = 0.914032699
+          long = 0.085436799
+          time = Time.new(2023, 6, 19, 10, 30, 0)
+          gps.force(lat, long, time)
+          gps.sog = 10.5
+          gps.cmg = 180.0
+
+          expected_string = "@20230619-10:30:00, 52.370216, 4.895168, SOG:10.5, CMG:180.0"
+          expect(gps.to_s).to eq(expected_string)
+        end
+      end
+
+      context 'when GPS data is invalid' do
+        it 'returns an error string' do
+          expect(gps.to_s).to eq("GPS error")
+        end
+      end
+    end
+  end
 end

@@ -34,5 +34,7 @@
 #
 require 'spec_helper'
 
-describe SGS::NMEA do
+module SGS
+  describe NMEA do
+  end
 end

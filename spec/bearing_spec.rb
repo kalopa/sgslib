@@ -1,3 +1,4 @@
+
 #
 # Copyright (c) 2014-2023, Kalopa Robotics Limited.  All rights
 # reserved.
@@ -34,74 +35,90 @@
 #
 require 'spec_helper'
 
-describe SGS::Bearing do
-  subject { SGS::Bearing.new(0, 0) }
+module SGS
+  describe Bearing do
+    subject { Bearing.new(0, 10) }
 
-  # Trinity College Dublin
-  let(:loc1) { SGS::Location.new(0.9310282965575151, -0.10918010110276395) }
-  # Buckingham Palace
-  let(:loc2) { SGS::Location.new(0.8988640251982394, -0.0024844063770438486) }
+    # Trinity College Dublin
+    let(:loc1) { Location.new(0.9310282965575151, -0.10918010110276395) }
+    # Buckingham Palace
+    let(:loc2) { Location.new(0.8988640251982394, -0.0024844063770438486) }
 
-  describe '#initialize' do
-    it 'should initialize a Bearing instance' do
-      expect(subject).to be_instance_of(SGS::Bearing)
+    describe '.initialize' do
+      it 'should initialize a Bearing instance' do
+        expect(subject).to be_instance_of(Bearing)
+      end
+
+      it 'should initialize the angle and distance' do
+        expect(subject.angle).to eq(0)
+        expect(subject.distance).to eq(10.0)
+      end
     end
 
-    it 'should initialize the angle and distance' do
-      expect(subject.angle).to eq(0)
-      expect(subject.distance).to eq(0)
+    describe '.degrees' do
+      it 'should initialize a Bearing instance from degrees' do
+        bearing = Bearing.degrees(45, 10)
+        expect(bearing.angle).to eq(Math::PI / 4)
+        expect(bearing.distance).to eq(10.0)
+      end
     end
-  end
 
-  describe '.degrees' do
-    it 'should initialize a Bearing instance from degrees' do
-      bearing = SGS::Bearing.degrees(45, 10)
-      expect(bearing.angle).to eq(Math::PI / 4)
-      expect(bearing.distance).to eq(10)
+    describe '.dtor' do
+      it 'should convert degrees to radians' do
+        expect(Bearing.dtor(45)).to eq(Math::PI / 4)
+      end
     end
-  end
 
-  describe '.dtor' do
-    it 'should convert degrees to radians' do
-      expect(SGS::Bearing.dtor(45)).to eq(Math::PI / 4)
+    describe '.rtod' do
+      it 'should convert radians to degrees' do
+        expect(Bearing.rtod(Math::PI / 4)).to eq(45)
+      end
     end
-  end
 
-  describe '.rtod' do
-    it 'should convert radians to degrees' do
-      expect(SGS::Bearing.rtod(Math::PI / 4)).to eq(45)
+    describe '.xtor' do
+      it 'should convert boat angle (in hex) to radians' do
+        expect(Bearing.xtor(384)).to eq(Math::PI)
+      end
     end
-  end
 
-  describe '.xtor' do
-    it 'should convert boat angle to radians' do
-      expect(SGS::Bearing.xtor(128)).to eq(Math::PI)
+    describe '.rtox' do
+      it 'should convert radians to hex-degrees' do
+        expect(Bearing.rtox(Math::PI)).to eq(128)
+      end
     end
-  end
 
-  describe '.rtox' do
-    it 'should convert radians to hex-degrees' do
-      expect(SGS::Bearing.rtox(Math::PI)).to eq(128)
+    describe '.absolute' do
+      it 'should re-adjust an angle away from negative' do
+        expect(Bearing.absolute(-1.5 * Math::PI)).to eq(0.5 * Math::PI)
+      end
     end
-  end
 
-  describe '.absolute' do
-    it 'should re-adjust an angle away from negative' do
-      expect(SGS::Bearing.absolute(-1.5 * Math::PI)).to eq(0.5 * Math::PI)
+    describe '.absolute_d' do
+      it 'should re-adjust an angle (in degrees) away from negative' do
+        expect(Bearing.absolute_d(-90)).to eq(270)
+      end
     end
-  end
 
-  describe '.absolute_d' do
-    it 'should re-adjust an angle (in degrees) away from negative' do
-      expect(SGS::Bearing.absolute_d(-90)).to eq(270)
+    describe '.compute' do
+      it 'should calculate the distance and angle between two locations' do
+        bearing = Bearing.compute(loc1, loc2)
+        expect(bearing.angle).to be_within(0.1).of(1.98)
+        expect(bearing.distance).to be_within(10).of(250)
+      end
     end
-  end
 
-  describe '.compute' do
-    it 'should calculate the distance and angle between two locations' do
-      bearing = SGS::Bearing.compute(loc1, loc2)
-      expect(bearing.angle).to be_within(0.1).of(1.98)
-      expect(bearing.distance).to be_within(10).of(250)
+    describe '.distance_m' do
+      it 'return the distance in metres' do
+        bearing = Bearing.new(0, 10)
+        expect(bearing.distance_m).to eq(18520.0)
+      end
+    end
+
+    describe '.to_s' do
+      it 'converts the bearing to a string' do
+        bearing = Bearing.compute(loc1, loc2)
+        expect(bearing.to_s).to eq("BRNG 113d,249.576NM")
+      end
     end
   end
 end

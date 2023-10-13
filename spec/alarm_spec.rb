@@ -34,23 +34,35 @@
 #
 require 'spec_helper'
 
-describe SGS::Alarm do
-  describe '#name' do
-    it 'returns the correct name for an alarm code' do
-      alarm = SGS::Alarm.new
-      expect(alarm.name(SGS::Alarm::VBATT_CRITICAL)).to eq("Battery voltage is critically low")
+module SGS
+  describe Alarm do
+    describe '.name' do
+      it 'returns the correct name for an alarm code' do
+        alarm = Alarm.new
+        expect(alarm.name(Alarm::VBATT_CRITICAL)).to eq("Battery voltage is critically low")
+      end
     end
-  end
 
-  describe '.build_include' do
-    it 'creates an include file with the correct alarm definitions' do
-      fname = "test_alarm_include.h"
-      SGS::Alarm.build_include(fname)
-      file_contents = File.read(fname)
-      expect(file_contents).to include("#define SGS_ALARM_MISSION_SWITCH\t0\t/* Mission Activation Switch */")
-      expect(file_contents).to include("#define SGS_ALARM_RUDDSRV_FAULT\t1\t/* Rudder Servo Fault */")
-      # Check more alarm definitions here
-      File.delete(fname)
+    describe '.build_include' do
+      it 'creates an include file with the correct alarm definitions' do
+        fname = "test_alarm_include.h"
+        Alarm.build_include(fname)
+        file_contents = File.read(fname)
+        expect(file_contents).to include("#define SGS_ALARM_MISSION_SWITCH\t0")
+        expect(file_contents).to include("#define SGS_ALARM_RUDDSRV_FAULT\t\t1")
+        expect(file_contents).to include("#define SGS_ALARM_SAILSRV_FAULT\t\t2")
+        expect(file_contents).to include("#define SGS_ALARM_VBATT_CRITICAL\t3")
+        expect(file_contents).to include("#define SGS_ALARM_VBATT_UNDERVOLTAGE\t4")
+        expect(file_contents).to include("#define SGS_ALARM_VBATT_OVERVOLTAGE\t5")
+        expect(file_contents).to include("#define SGS_ALARM_VSOLAR_OVERVOLTAGE\t8")
+        expect(file_contents).to include("#define SGS_ALARM_WDI_STUCK\t\t11")
+        expect(file_contents).to include("#define SGS_ALARM_WDI_NOREAD\t\t12")
+        expect(file_contents).to include("#define SGS_ALARM_RUDDER_NOZERO\t\t13")
+        expect(file_contents).to include("#define SGS_ALARM_SAIL_NOZERO\t\t14")
+        expect(file_contents).to include("#define SGS_ALARM_OTTO_RESTART\t\t16")
+        expect(file_contents).to include("#define SGS_ALARM_WAYPOINT_REACHED\t20")
+        File.delete(fname)
+      end
     end
   end
 end

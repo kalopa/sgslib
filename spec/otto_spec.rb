@@ -34,5 +34,7 @@
 #
 require 'spec_helper'
 
-describe SGS::Otto do
+module SGS
+  describe Otto do
+  end
 end

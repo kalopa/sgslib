@@ -34,8 +34,10 @@
 #
 require 'spec_helper'
 
-describe SGS::Waypoint do
-end
+module SGS
+  describe Waypoint do
+  end
 
-describe SGS::TrackPoint do
+  describe TrackPoint do
+  end
 end

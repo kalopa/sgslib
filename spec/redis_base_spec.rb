@@ -34,5 +34,7 @@
 #
 require 'spec_helper'
 
-describe SGS::RedisBase do
+module SGS
+  describe RedisBase do
+  end
 end

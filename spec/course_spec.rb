@@ -34,5 +34,111 @@
 #
 require 'spec_helper'
 
-describe SGS::Course do
+module SGS
+  describe Course do
+    let(:wind) { Bearing.new(Math::PI / 4, 10.0) }
+    let(:waypoint) { double(distance: 100.0, bearing: Bearing.new(Math::PI / 2, 0.0)) }
+
+    describe '.initialize' do
+      it 'sets the default values' do
+        course = Course.new
+        expect(course.awa).to eq(0.0)
+        expect(course.speed).to eq(0.0)
+        expect(course.wind).to be_instance_of(Bearing)
+        expect(course.heading).to eq(0)
+      end
+
+      it 'sets the wind to the provided value' do
+        course = Course.new(wind)
+        expect(course.wind).to eq(wind)
+      end
+    end
+
+    describe '.heading=' do
+      it 'sets the heading and updates AWA' do
+        course = Course.new(wind)
+        course.heading = Math::PI / 6
+        expect(course.heading).to eq(Math::PI / 6)
+        expect(course.awa).to eq(wind.angle - (Math::PI / 6))
+      end
+
+      it 'normalizes the heading when greater than 2*PI' do
+        course = Course.new(wind)
+        course.heading = 3 * Math::PI
+        expect(course.heading).to eq(Math::PI)
+      end
+
+      it 'normalizes the heading when negative' do
+        course = Course.new(wind)
+        course.heading = -Math::PI / 4
+        expect(course.heading).to eq((7 * Math::PI) / 4)
+      end
+    end
+
+    describe '.wind=' do
+      it 'sets the wind and updates AWA' do
+        course = Course.new(wind)
+        new_wind = Bearing.new(0.0, 15.0)
+        course.wind = new_wind
+        expect(course.wind).to eq(new_wind)
+        expect(course.awa).to eq(new_wind.angle - course.heading)
+      end
+    end
+
+    describe '.awa=' do
+      it 'sets the AWA and computes the speed' do
+        course = Course.new(wind)
+        course.awa = Math::PI / 3
+        expect(course.awa).to eq(Math::PI / 3)
+        expect(course.speed).not_to eq(0.0)
+      end
+
+      it 'normalizes the AWA when less than -PI' do
+        course = Course.new(wind)
+        course.awa = -3 * Math::PI / 2
+        expect(course.awa).to eq(Math::PI / 2)
+      end
+
+      it 'normalizes the AWA when greater than PI' do
+        course = Course.new(wind)
+        course.awa = 3 * Math::PI / 2
+        expect(course.awa).to eq(-Math::PI / 2)
+      end
+    end
+
+    describe '.relative_vmg' do
+      it 'calculates the relative VMG based on the waypoint' do
+        course = Course.new(wind)
+        vmg = course.relative_vmg(waypoint)
+        expect(vmg).to be_within(0.001).of(0.0)
+      end
+    end
+
+    describe '.compute_wind' do
+      it 'computes the wind angle based on heading and AWA' do
+        course = Course.new(wind)
+        course.compute_wind
+        expect(course.wind.angle).to eq(wind.angle)
+      end
+    end
+
+    describe '.compute_speed' do
+      it 'computes the speed based on the AWA' do
+        course = Course.new(wind)
+        course.awa = Math::PI
+        course.compute_speed
+        expect(course.speed).to eq(1.695373155450642)
+      end
+    end
+
+    describe '.to_s' do
+      it 'returns a formatted string representation' do
+        course = Course.new(wind)
+        course.heading = Math::PI / 3
+        course.awa = Math::PI / 4
+        expected_string = "Heading 59d (wind 10.0@45d, AWA:45d, speed=1.96knots)"
+        expect(course.to_s).to eq(expected_string)
+      end
+    end
+  end
 end

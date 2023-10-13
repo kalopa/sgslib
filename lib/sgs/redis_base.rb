@@ -96,7 +96,7 @@ module SGS
           # It's an array - iterate and read the values.
           lval.size.times do |idx|
             idx_val = lval[idx]
-            lval[idx] = redis_read_var var, idx_val.class, :idx => idx 
+            lval[idx] = redis_read_var var, idx_val.class, :idx => idx
          end
         elsif lval.kind_of? Location
           #

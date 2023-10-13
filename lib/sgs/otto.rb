@@ -112,7 +112,7 @@ module SGS
 
     #
     # Set up some useful defaults. We assume rudder goes from 0 to 255 as does
-    # the sail angle. 
+    # the sail angle.
     def initialize
       serial_port = nil
       #
@@ -255,8 +255,6 @@ module SGS
         cmd = "R%d=%X\r\n" % params
         puts "Command: #{cmd}"
         @serial_port.write cmd
-        puts "> Sending command: #{str}"
-        @serial_port.puts "#{str}"
       end
     end
 

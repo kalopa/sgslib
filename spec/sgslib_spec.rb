@@ -52,7 +52,7 @@ describe SGS do
     #gps.location = SGS::Location.parse_str("53N,9W")
     expect(gps.save).to be true
   end
-  
+
   it 'can retrieve a GPS record from Redis' do
     gps = SGS::GPS.load
     expect(gps.time.year).to eq(Time.now.year)

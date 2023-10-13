@@ -58,7 +58,7 @@ module SGS
       end
       nmea
     end
-    
+
     #
     # Parse an NMEA string into its component parts.
     def parse(str)

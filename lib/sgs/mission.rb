@@ -166,7 +166,10 @@ module SGS
         hash["attractors"] << waypt.to_hash
       end
       hash["repellors"] = []
-      hash
+      @repellors.each do |waypt|
+        hash["repellors"] << waypt.to_hash
+      end
+      return hash
     end
   end
 end

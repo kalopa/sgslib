@@ -34,5 +34,81 @@
 #
 require 'spec_helper'
 
-describe SGS::Navigate do
+module SGS
+  describe Navigate do
+    let(:mission) { double('mission') }
+    let(:gps) { double('gps') }
+    let(:otto) { double('otto') }
+    let(:navigate) { Navigate.new(mission) }
+
+    before do
+      allow(GPS).to receive(:load).and_return(gps)
+      allow(Otto).to receive(:load).and_return(otto)
+    end
+
+    describe '.initialize' do
+      it 'sets the mission and swing instance variables' do
+        expect(navigate.instance_variable_get(:@mission)).to eq(mission)
+        expect(navigate.instance_variable_get(:@swing)).to eq(45)
+      end
+    end
+
+    describe '.navigate' do
+      context 'when the current waypoint is -1' do
+        before do
+          allow(mission).to receive_message_chain(:status, :current_waypoint).and_return(-1)
+          allow(mission).to receive_message_chain(:status, :current_waypoint=)
+          allow(mission).to receive_message_chain(:status, :distance=)
+        end
+
+        it 'sets the current waypoint to 0 and distance to 0' do
+          expect(mission.status).to receive(:current_waypoint=).with(0)
+          expect(mission.status).to receive(:distance=).with(0)
+          navigate.navigate
+        end
+      end
+
+      context 'when GPS data is valid' do
+        before do
+          allow(gps).to receive(:valid?).and_return(true)
+        end
+
+        it 'loads the latest GPS and Otto data' do
+          expect(GPS).to receive(:load).and_return(gps)
+          expect(Otto).to receive(:load).and_return(otto)
+          navigate.navigate
+        end
+
+        it 'computes a new course' do
+          allow(gps).to receive(:valid?).and_return(true)
+          allow(otto).to receive(:compass)
+          allow(otto).to receive(:awa)
+          allow(otto).to receive(:wind)
+          expect(navigate).to receive(:compute_new_course)
+          navigate.navigate
+        end
+      end
+
+      context 'when GPS data is invalid' do
+        before do
+          allow(gps).to receive(:valid?).and_return(false)
+        end
+
+        it 'does not compute a new course' do
+          expect(navigate).not_to receive(:compute_new_course)
+          navigate.navigate
+        end
+      end
+    end
+
+    describe '.compute_new_course' do
+      it 'performs the vector field analysis and returns the best course' do
+        expect(navigate).to receive(:puts).at_least(:once)
+        expect(Course).to receive(:new).and_return(double('course', tack_name: 'tack_name', heading_d: 0.0))
+        expect(navigate).to receive(:puts).with('Best course:')
+        expect(navigate).to receive(:p)
+        navigate.compute_new_course
+      end
+    end
+  end
 end

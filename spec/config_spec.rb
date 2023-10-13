@@ -34,5 +34,22 @@
 #
 require 'spec_helper'
 
-describe SGS::Config do
+module SGS
+  describe Config do
+    subject { Config.new }
+
+    describe '.initialize' do
+      it 'should initialize a Config instance' do
+        expect(subject).to be_instance_of(Config)
+      end
+
+      it 'should initialize the default values' do
+        expect(subject.mission_file).to eq('/etc/mission.yaml')
+        expect(subject.otto_device).to eq('/dev/ttyu0')
+        expect(subject.gps_device).to eq('/dev/ttyu1')
+        expect(subject.comm_device).to eq('/dev/ttyu2')
+        expect(subject.otto_speed).to eq(9600)
+      end
+    end
+  end
 end
