@@ -292,7 +292,7 @@ module SGS
     # representing the elapsed seconds since Otto restarted.
     def parse_tstamp(tstamp)
       newval = tstamp.to_i(16)
-      if newval < @otto_timestamp
+      if @otto_timestamp.nil? or newval < @otto_timestamp
         puts "ALARM! Otto rebooted (or something)..."
       end
       @otto_timestamp = newval

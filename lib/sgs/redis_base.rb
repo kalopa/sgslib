@@ -206,7 +206,7 @@ module SGS
         case
         when klass == Time
           redis_val = Time.at(redis_val.to_f).gmtime
-        when klass == Fixnum
+        when klass == Integer
           redis_val = redis_val.to_i
         when klass == Float
           redis_val = redis_val.to_f
