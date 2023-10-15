@@ -41,7 +41,7 @@ module SGS
     #
     # Main daemon function (called from executable)
     def self.daemon
-      puts "Diagnostics subsystem starting up..."
+      puts "Diagnostics subsystem starting up. Version #{SGS::VERSION}"
       loop do
         sleep 300
       end

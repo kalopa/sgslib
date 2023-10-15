@@ -69,7 +69,7 @@ module SGS
     #
     # Main daemon function (called from executable)
     def self.daemon
-      puts "Mission management system starting up..."
+      puts "Mission management system starting up. Version #{SGS::VERSION}"
       #
       # Load the mission data from Redis and augment it with the
       # contents of the mission file.
@@ -87,14 +87,14 @@ module SGS
           # a compass course), and set the Otto register accordingly.
           # Repeat until we run out of waypoints.
           GPS.subscribe do |count|
-            puts "Mission received new GPS count: #{count}"
-            new_course = nav.navigate
-            if new_course.nil?
+            puts "\n***** Mission received new GPS count: #{count} *****"
+            if nav.navigate
               mission.status.completed!
               break
             end
             mission.status.save
-            compass = Bearing.rtox(new_course.heading)
+            compass = Bearing.rtox(nav.course.heading)
+            puts "Proposed compass course: #{compass}xd"
             otto.set_register(Otto::COMPASS_HEADING_REGISTER, compass)
           end
         else

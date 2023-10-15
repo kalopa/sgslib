@@ -49,16 +49,20 @@
 #
 module SGS
   class Navigate
+    attr_reader :course, :gps, :otto, :waypoint
+
     #
     # Initialize the navigational parameters
     def initialize(mission)
       @mission = mission
+      @course = nil
       @swing = 45
     end
 
     #
     # Compute the best heading based on our current position and the position
-    # of the current attractor. This is where the heavy-lifting happens
+    # of the current attractor. This is where the heavy-lifting happens.
+    # Returns TRUE if we're done.
     def navigate
       if @mission.status.current_waypoint == -1
         @mission.status.current_waypoint = 0
@@ -66,35 +70,29 @@ module SGS
       end
       set_waypoint
       puts "Attempting to navigate to #{@waypoint}..."
-      #
-      # Pull the latest GPS data...
-      @gps = GPS.load
-      puts "GPS: #{@gps}"
-      return unless @gps.valid?
-      #
-      # Pull the latest Otto data...
-      @otto = Otto.load
-      puts "OTTO:"
-      p @otto
-      puts "Compass: #{@otto.compass}"
-      puts "AWA: #{@otto.awa}"
-      puts "Wind: #{@otto.wind}"
-      #
-      # Update our local copy of the course based on what Otto says.
-      puts "Course:"
-      @course = Course.new
-      @course.heading = @otto.compass
-      @course.awa = @otto.awa
-      @course.compute_wind
-      #
-      # Compute a new course from the parameter set
-      compute_new_course
+      pull_gps_data
+      pull_otto_data
+      return compute_new_course
     end
 
     #
     # Compute a new course based on our position and other information.
     def compute_new_course
+      #
+      # Update our local copy of the course based on what Otto says.
       puts "Compute new course..."
+      unless @course
+        #
+        # First time through, the current course is whichever way the boat
+        # is pointing.
+        @course = Course.new
+        @course.heading = @otto.compass
+      end
+      #
+      # Really it's the AWA we're interested in, not the boat heading.
+      @course.awa = @otto.awa
+      @course.compute_wind
+      p @course
       #
       # First off, compute distance and bearing from our current location
       # to every attractor and repellor. We only look at forward attractors,
@@ -107,7 +105,7 @@ module SGS
       while active? and reached?
         next_waypoint!
       end
-      return nil unless active?
+      return true unless active?
       puts "Angle to next waypoint: #{@waypoint.bearing.angle_d}d"
       puts "Adjusted distance to waypoint is #{@waypoint.distance}"
       #
@@ -142,12 +140,13 @@ module SGS
           best_course = new_course
         end
       end
-      puts "Best course:"
+      puts "Best course: AWA: #{best_course.awa_d} degrees, Course: #{best_course.heading_d} degrees, Speed: #{best_course.speed} knots"
       p best_course
       if best_course.tack != @course.tack
         puts "TACKING!!!!"
       end
-      best_course
+      @course = best_course
+      return false
     end
 
     #
@@ -253,6 +252,31 @@ module SGS
         loc = wpt.location
       end
       dist
+    end
+
+    #
+    # Pull the latest GPS data. Failure is not an option.
+    def pull_gps_data
+      loop do
+        @gps = GPS.load
+        puts "GPS: #{@gps}"
+        break if @gps.valid?
+        puts "Retrying GPS..."
+        sleep 1
+      end
+    end
+
+    #
+    # Pull the latest Otto data.
+    def pull_otto_data
+      #
+      # Pull the latest Otto data...
+      @otto = Otto.load
+      puts "OTTO:"
+      p @otto
+      puts "Compass: #{@otto.compass}"
+      puts "AWA: #{@otto.awa}"
+      puts "Wind: #{@otto.wind}"
     end
 
     #

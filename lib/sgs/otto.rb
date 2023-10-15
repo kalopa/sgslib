@@ -53,6 +53,14 @@ module SGS
     attr_reader :actual_rudder, :actual_sail
     attr_reader :otto_mode, :otto_timestamp, :telemetry
 
+    MISSION_SWITCH = 1
+    RUDDER_FAULT = 2
+    SAIL_FAULT = 3
+    BATTERY_FAULT = 4
+    SOLAR_FAULT = 5
+    COMPASS_FAULT = 6
+    ACCEL_FAULT = 7
+    WDI_FAULT = 8
     #
     # Updates to Otto are done by setting an 8bit register value, as below.
     ALARM_CLEAR_REGISTER = 0
@@ -116,6 +124,9 @@ module SGS
     def initialize
       serial_port = nil
       #
+      # Keep a local copy of the register set to avoid duplication.
+      @registers = Array.new(MAX_REGISTER)
+      #
       # Set some defaults for the read-back parameters
       # The following five parameters are reported back by Otto with a status
       # message, and are read-only. @alarm_status is 16 bits while the other
@@ -148,7 +159,7 @@ module SGS
     # to do an initial sync with the device as it will ignore the
     # usual serial console boot-up gumph awaiting our sync message.
     def self.daemon
-      puts "Low-level (Otto) communication subsystem starting up..."
+      puts "Low-level (Otto) communication subsystem starting up. Version #{SGS::VERSION}"
       otto = new
       config = Config.load
       otto.serial_port = SerialPort.new config.otto_device, config.otto_speed
@@ -250,11 +261,17 @@ module SGS
         request = MessagePack.unpack(request)
         puts "Req:[#{request.inspect}]"
         params = request['params']
-        next if request['method'] != "set_local_register"
         puts "PARAMS: #{params}"
-        cmd = "R%d=%X\r\n" % params
-        puts "Command: #{cmd}"
-        @serial_port.write cmd
+        case request['method']
+        when "set_local_register"
+          reg, value = params
+          if @registers[reg] != value
+            cmd = "R%d=%X\r\n" % [reg, value]
+            puts "Command: #{cmd}"
+            @serial_port.write cmd
+            @registers[reg] = value
+          end
+        end
       end
     end
 

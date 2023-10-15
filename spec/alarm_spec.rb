@@ -39,7 +39,7 @@ module SGS
     describe '.name' do
       it 'returns the correct name for an alarm code' do
         alarm = Alarm.new
-        expect(alarm.name(Alarm::VBATT_CRITICAL)).to eq("Battery voltage is critically low")
+        expect(alarm.name(Alarm::CROSS_TRACK_ERROR)).to eq("Significant cross-track error")
       end
     end
 
@@ -48,19 +48,23 @@ module SGS
         fname = "test_alarm_include.h"
         Alarm.build_include(fname)
         file_contents = File.read(fname)
-        expect(file_contents).to include("#define SGS_ALARM_MISSION_SWITCH\t0")
-        expect(file_contents).to include("#define SGS_ALARM_RUDDSRV_FAULT\t\t1")
-        expect(file_contents).to include("#define SGS_ALARM_SAILSRV_FAULT\t\t2")
-        expect(file_contents).to include("#define SGS_ALARM_VBATT_CRITICAL\t3")
-        expect(file_contents).to include("#define SGS_ALARM_VBATT_UNDERVOLTAGE\t4")
-        expect(file_contents).to include("#define SGS_ALARM_VBATT_OVERVOLTAGE\t5")
-        expect(file_contents).to include("#define SGS_ALARM_VSOLAR_OVERVOLTAGE\t8")
-        expect(file_contents).to include("#define SGS_ALARM_WDI_STUCK\t\t11")
-        expect(file_contents).to include("#define SGS_ALARM_WDI_NOREAD\t\t12")
-        expect(file_contents).to include("#define SGS_ALARM_RUDDER_NOZERO\t\t13")
-        expect(file_contents).to include("#define SGS_ALARM_SAIL_NOZERO\t\t14")
-        expect(file_contents).to include("#define SGS_ALARM_OTTO_RESTART\t\t16")
+        expect(file_contents).to include("#define SGS_ALARM_ACCEL_FAULT\t\t7")
+        expect(file_contents).to include("#define SGS_ALARM_BATTERY_FAULT\t\t4")
+        expect(file_contents).to include("#define SGS_ALARM_COMPASS_FAULT\t\t6")
+        expect(file_contents).to include("#define SGS_ALARM_CROSS_TRACK_ERROR\t21")
+        expect(file_contents).to include("#define SGS_ALARM_INSIDE_FENCE\t\t22")
+        expect(file_contents).to include("#define SGS_ALARM_MISSION_ABORT\t\t19")
+        expect(file_contents).to include("#define SGS_ALARM_MISSION_COMMENCE\t17")
+        expect(file_contents).to include("#define SGS_ALARM_MISSION_COMPLETE\t18")
+        expect(file_contents).to include("#define SGS_ALARM_MISSION_SWITCH\t1")
+        expect(file_contents).to include("#define SGS_ALARM_MOTHER_UNRESP\t\t9")
+        expect(file_contents).to include("#define SGS_ALARM_OTTO_FAULT\t\t16")
+        expect(file_contents).to include("#define SGS_ALARM_OTTO_RESTART\t\t0")
+        expect(file_contents).to include("#define SGS_ALARM_RUDDER_FAULT\t\t2")
+        expect(file_contents).to include("#define SGS_ALARM_SAIL_FAULT\t\t3")
+        expect(file_contents).to include("#define SGS_ALARM_SOLAR_FAULT\t\t5")
         expect(file_contents).to include("#define SGS_ALARM_WAYPOINT_REACHED\t20")
+        expect(file_contents).to include("#define SGS_ALARM_WDI_FAULT\t\t8")
         File.delete(fname)
       end
     end

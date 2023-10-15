@@ -53,17 +53,22 @@ module SGS
     #
     # Main daemon function (called from executable)
     def self.daemon
-      puts "GPS reader starting up..."
+      puts "GPS reader starting up. Version #{SGS::VERSION}"
       config = Config.load
 
       sp = SerialPort.new config.gps_device, config.gps_speed
       sp.read_timeout = 10000
 
       loop do
-        nmea = NMEA.parse sp.readline
+        line = sp.readline
+        nmea = NMEA.parse line
         if nmea.is_gprmc?
           gps = nmea.parse_gprmc
           p gps
+          if gps.cmg < 0.0
+            puts "CMG ERROR?!? #{gps.cmg}"
+            p line
+          end
           gps.save_and_publish if gps and gps.valid?
         end
       end

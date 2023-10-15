@@ -42,7 +42,7 @@ module SGS
     #
     # Main daemon function (called from executable)
     def self.daemon
-      puts "Reporting subsystem starting up..."
+      puts "Reporting subsystem starting up. Version #{SGS::VERSION}"
       config = Config.load
       sp = SerialPort.new config.comm_device, config.comm_speed
       sp.read_timeout = 10000
